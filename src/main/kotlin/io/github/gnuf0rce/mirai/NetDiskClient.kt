@@ -55,7 +55,7 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
                 runCatching {
                     uploadRemoteFile(file)
                 }.onSuccess {
-                    subject.sendMessage("文件${file.name}上传成功")
+                    subject.sendMessage("文件${file.name}上传成功, 秒传码${file.getRapidUploadInfo().format()}")
                 }
             }
         }
