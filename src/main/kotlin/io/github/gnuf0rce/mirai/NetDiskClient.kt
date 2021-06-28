@@ -48,14 +48,19 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
     fun subscribe() {
         globalEventChannel().subscribeMessages {
             val excludes by FileSyncConfig::excludes
-            has<FileMessage> {
-                if (subject.id in excludes) return@has
-
-                val file = it.toRemoteFile(subject as FileSupported) ?: return@has
-                runCatching {
-                    uploadRemoteFile(file)
-                }.onSuccess {
-                    subject.sendMessage("文件${file.name}上传成功, 秒传码${file.getRapidUploadInfo().format()}")
+            content { subject.id !in excludes }.invoke {
+                message.filterIsInstance<FileMessage>().forEach { massage ->
+                    logger.info { "发现文件消息，开始上传" }
+                    lateinit var file: RemoteFile
+                    runCatching {
+                        file = requireNotNull(massage.toRemoteFile(subject as FileSupported))
+                        uploadRemoteFile(file)
+                    }.onSuccess {
+                        logger.info { "上传成功$massage" }
+                        subject.sendMessage("文件${massage.name}上传成功, 秒传码${file.getRapidUploadInfo().format()}")
+                    }.onFailure {
+                        logger.warning { "上传失败$massage, $it" }
+                    }
                 }
             }
         }
@@ -63,9 +68,8 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
 
     private suspend fun uploadRemoteFile(file: RemoteFile): NetDiskFileInfo {
         val info = requireNotNull(file.getDownloadInfo())
-        val contact by file::contact
 
-        val path = "${contact}/${file.path}/${file.name}"
+        val path = "${file.contact.id}/${file.path}/${file.name}"
         val rapid = file.getRapidUploadInfo()
 
         runCatching {
@@ -79,6 +83,8 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             "${file.contact}-${file.name} 超过了文件上传极限"
         }
         val block = user.vip.superLimit.toLong()
+
+        logger.info { "开始上传${info}" }
 
         val pre = preCreate(
             path = path,
