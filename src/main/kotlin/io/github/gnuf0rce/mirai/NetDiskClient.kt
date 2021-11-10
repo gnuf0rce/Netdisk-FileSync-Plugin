@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.*
 import net.mamoe.mirai.console.command.CommandSender.Companion.toCommandSender
 import net.mamoe.mirai.console.permission.*
 import net.mamoe.mirai.console.permission.PermissionService.Companion.testPermission
+import net.mamoe.mirai.console.permission.PermitteeId.Companion.permitteeId
 import net.mamoe.mirai.console.util.CoroutineScopeUtils.childScope
 import net.mamoe.mirai.contact.*
 import net.mamoe.mirai.contact.file.*
@@ -61,9 +62,9 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
     fun subscribe() {
         globalEventChannel().subscribeMessages {
             always {
-                val contact = subject as? FileSupported ?: return@always
+                val contact = subject as? Group ?: return@always
                 val content = message.firstIsInstanceOrNull<FileMessage>() ?: return@always
-                if (permission.testPermission(toCommandSender()).not()) return@always
+                if (permission.testPermission(contact.permitteeId).not()) return@always
 
                 logger.info { "发现文件消息 ${content}，开始上传" }
                 lateinit var file: AbsoluteFile

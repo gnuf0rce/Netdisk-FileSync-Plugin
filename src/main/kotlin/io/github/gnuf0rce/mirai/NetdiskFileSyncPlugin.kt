@@ -9,8 +9,8 @@ import net.mamoe.mirai.utils.*
 
 object NetdiskFileSyncPlugin : KotlinPlugin(
     JvmPluginDescription(
-        id = "io.github.gnuf0rce.netdisk-filesync-plugin",
-        name = "netdisk-filesync-plugin",
+        id = "io.github.gnuf0rce.file-sync",
+        name = "file-sync",
         version = "1.0.0-dev-1",
     ) {
         author("cssxsh")
@@ -25,7 +25,7 @@ object NetdiskFileSyncPlugin : KotlinPlugin(
             "插件需要百度网盘API支持，请到 https://pan.baidu.com/union/main/application/personal 申请应用，并填入oauth.yml"
         }
 
-        logger.info { "请将文件同步权限授予 ${NetDiskClient.permission.id}" }
+        logger.info { "请将文件同步权限授予群 ${NetDiskClient.permission.id}" }
 
         NetDiskClient.reload()
 
