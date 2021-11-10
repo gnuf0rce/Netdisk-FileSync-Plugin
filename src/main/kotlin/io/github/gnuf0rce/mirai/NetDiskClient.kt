@@ -150,8 +150,11 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
 
     private suspend fun download(urlString: String, range: LongRange? = null): ByteArray {
         val fragment = range?.run { "bytes=${start}-${endInclusive}" }
-        // FIXME: https
-        val url = Url(urlString).copy(protocol = URLProtocol.HTTPS, host = "gzc-download.ftn.qq.com")
+        val url = if (NetdiskUploadConfig.https) {
+            Url(urlString).copy(protocol = URLProtocol.HTTPS, host = "gzc-download.ftn.qq.com")
+        } else {
+            Url(urlString)
+        }
         logger.info { "$url#$fragment" }
         return useHttpClient { client ->
             client.config {

@@ -19,6 +19,7 @@ object NetdiskFileSyncPlugin : KotlinPlugin(
 
     override fun onEnable() {
         NetdiskOauthConfig.reload()
+        NetdiskUploadConfig.reload()
         NetdiskUserData.reload()
         NetdiskSyncHistory.reload()
 
