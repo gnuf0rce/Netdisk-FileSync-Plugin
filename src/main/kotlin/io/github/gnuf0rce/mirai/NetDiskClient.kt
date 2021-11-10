@@ -4,9 +4,9 @@ import io.github.gnuf0rce.mirai.data.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.utils.io.errors.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import net.mamoe.mirai.console.command.CommandSender.Companion.toCommandSender
 import net.mamoe.mirai.console.permission.*
 import net.mamoe.mirai.console.permission.PermissionService.Companion.testPermission
 import net.mamoe.mirai.console.permission.PermitteeId.Companion.permitteeId
@@ -32,6 +32,18 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
     }
 
     private val logger get() = NetdiskFileSyncPlugin.logger
+
+    override val apiIgnore: suspend (Throwable) -> Boolean = { throwable ->
+        when (throwable) {
+            is HttpRequestTimeoutException,
+            is IOException
+            -> {
+                logger.warning { "NetDiskClient Ignore: $throwable" }
+                true
+            }
+            else -> false
+        }
+    }
 
     override val accessToken: String
         get() {
@@ -75,11 +87,11 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
 
                     uploadAbsoluteFile(file)
                 }.onSuccess { rapid ->
-                    logger.info { "上传成功$file" }
-                    subject.sendMessage(message.quote() + "文件${file.name}上传成功, 秒传码${rapid.format()}")
+                    logger.info { "上传成功 $file" }
+                    subject.sendMessage(message.quote() + "文件 ${file.name} 上传成功, 秒传码${rapid.format()}")
                 }.onFailure {
-                    logger.warning { "上传失败$file, $it" }
-                    subject.sendMessage(message.quote() + "文件${file.name}上传失败, $it")
+                    logger.warning({ "上传失败 $file" }, it)
+                    subject.sendMessage(message.quote() + "文件 ${file.name} 上传失败, $it")
                 }
             }
         }
@@ -88,12 +100,18 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
     private suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
 
         val path = "${file.contact.id}${file.absolutePath}"
-        val rapid = file.rapid()
+        val rapid = file.rapid().copy(path = path)
 
-        logger.info { "upload $file to $path" }
+        val mkdir = coroutineScope {
+            async {
+                createFile(path = path, size = 0, isDir = true, rename = RenameType.NO)
+            }
+        }
+
+        logger.info { "upload ${rapid.format()} to $path" }
 
         runCatching {
-            rapidUploadFile(rapid.copy(path = path))
+            rapidUploadFile(rapid)
         }.onSuccess {
             return@uploadAbsoluteFile rapid
         }
@@ -102,72 +120,66 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
         check(file.size <= user.vip.updateLimit) {
             "${file.contact}-${file.name} 超过了文件上传极限"
         }
-        val block = user.vip.superLimit.toLong()
+        val limit = user.vip.superLimit.toLong()
 
-        val pre = preCreate(
-            path = path,
-            size = file.size,
-            isDir = false,
-            blocks = emptyList(),
-        )
+        val pre = preCreate(path = path, size = file.size, isDir = false, blocks = emptyList(), rename = RenameType.PATH)
 
         if (pre.type == CreateReturnType.EXIST) {
             return rapid
+        } else {
+            check(pre.uploadId.isNotEmpty()) { pre.toString() }
         }
 
         val url = requireNotNull(file.getUrl()) { "文件不存在" }
-        val blocks = (0..file.size step block).asFlow().map { first ->
-            val last = minOf(first + block, file.size) - 1
-            download(url, first..last)
-        }.withIndex().buffer().map { (index, bytes) ->
-            superFile(
-                path = path,
-                uploadId = pre.uploadId,
-                index = index,
-                data = bytes,
-                size = bytes.size
-            )
+
+        val blocks = (0 until file.size step limit).asFlow().map { offset ->
+            download(url, offset until minOf(offset + limit, file.size))
+        }.withIndex().buffer().onStart {
+            mkdir.await()
+        }.map { (index, bytes) ->
+            superFile(path = path, uploadId = pre.uploadId, index = index, data = bytes, size = bytes.size)
             bytes.toByteString().md5().hex()
         }.toList()
 
-        createFile(
-            path = path,
-            size = file.size,
-            isDir = false,
-            blocks = blocks,
-            uploadId = pre.uploadId
-        )
+        createFile(path = path, size = file.size, isDir = false, blocks = blocks, uploadId = pre.uploadId, rename = RenameType.PATH)
 
         return rapid
     }
 
     private suspend fun download(urlString: String, range: LongRange? = null): ByteArray {
+        val fragment = range?.run { "bytes=${start}-${endInclusive}" }
+        // FIXME: https
         val url = Url(urlString).copy(protocol = URLProtocol.HTTPS, host = "gzc-download.ftn.qq.com")
-        logger.info { "$url" }
+        logger.info { "$url#$fragment" }
         return useHttpClient { client ->
             client.config {
                 BrowserUserAgent()
             }.get(url) {
-                header(HttpHeaders.Range, range?.run { "${start}-${endInclusive}" })
+                header(HttpHeaders.Range, fragment)
             }
         }
     }
 
     private suspend fun AbsoluteFile.rapid(): RapidUploadInfo {
         return RapidUploadInfo(
-            content = md5.toByteString().hex(),
-            slice = slice().toByteString().hex(),
+            content = md5(),
+            slice = slice(),
             length = size,
             path = absolutePath
         )
     }
 
-    private suspend fun AbsoluteFile.slice(): ByteArray {
-        val url = requireNotNull(getUrl()) { "文件不存在" }
-        logger.info { url }
-        return download(
-            urlString = url,
-            range = 0..SLICE_SIZE.toLong().coerceAtMost(size)
-        )
+    private fun AbsoluteFile.md5(): String {
+        return md5.toByteString().hex()
+    }
+
+    private suspend fun AbsoluteFile.slice(): String {
+        return if (size <= SLICE_SIZE) {
+            md5()
+        } else {
+            val url = requireNotNull(getUrl()) { "文件不存在" }
+            val bytes = download(urlString = url, range = 0L until SLICE_SIZE.toLong())
+            bytes.toByteString().md5().hex()
+        }
     }
 }
