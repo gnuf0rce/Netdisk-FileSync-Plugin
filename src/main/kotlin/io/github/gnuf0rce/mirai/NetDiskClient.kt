@@ -87,8 +87,10 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
 
                     uploadAbsoluteFile(file)
                 }.onSuccess { rapid ->
-                    logger.info { "上传成功 $file" }
-                    subject.sendMessage(message.quote() + "文件 ${file.name} 上传成功, 秒传码${rapid.format()}")
+                    val code = rapid.format()
+                    logger.info { "上传成功 $file, code" }
+                    NetdiskSyncHistory.records.add(code)
+                    subject.sendMessage(message.quote() + "文件 ${file.name} 上传成功, 秒传码:\n$code")
                 }.onFailure {
                     logger.warning({ "上传失败 $file" }, it)
                     subject.sendMessage(message.quote() + "文件 ${file.name} 上传失败, $it")
