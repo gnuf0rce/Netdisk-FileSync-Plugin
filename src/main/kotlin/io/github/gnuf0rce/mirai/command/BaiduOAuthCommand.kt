@@ -4,6 +4,8 @@ import io.github.gnuf0rce.mirai.*
 import net.mamoe.mirai.console.*
 import net.mamoe.mirai.console.command.*
 import net.mamoe.mirai.console.util.*
+import net.mamoe.mirai.message.data.*
+import net.mamoe.mirai.message.*
 import net.mamoe.mirai.utils.*
 import xyz.cssxsh.baidu.disk.*
 import xyz.cssxsh.baidu.oauth.*
@@ -15,12 +17,20 @@ object BaiduOAuthCommand : SimpleCommand(
 ) {
     private val logger by NetdiskFileSyncPlugin::logger
 
+    private suspend fun CommandSender.read(): String {
+        return when (this) {
+            is ConsoleCommandSender -> MiraiConsole.requestInput("")
+            is CommandSenderOnMessage<*> -> fromEvent.nextMessage().firstIsInstance<PlainText>().content
+            else -> throw IllegalStateException("位置环境 $this")
+        }
+    }
+
     @Handler
-    suspend fun ConsoleCommandSender.handle() {
+    suspend fun CommandSender.handle() {
         val url = NetDiskClient.getWebAuthorizeUrl(type = AuthorizeType.AUTHORIZATION)
         sendMessage("请打开连接，然后在十分钟内输入获得的认证码, $url")
         NetDiskClient.runCatching {
-            val code = MiraiConsole.requestInput("")
+            val code = read()
             getAuthorizeToken(code = code).also { saveToken(token = it) } to getUserInfo()
         }.onSuccess { (token, user) ->
             logger.info { "百度云用户认证成功, ${user.baiduName} by $token" }
