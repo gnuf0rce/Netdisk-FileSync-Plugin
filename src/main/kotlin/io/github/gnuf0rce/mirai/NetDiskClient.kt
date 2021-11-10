@@ -3,7 +3,9 @@ package io.github.gnuf0rce.mirai
 import io.github.gnuf0rce.mirai.data.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.errors.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -35,6 +37,7 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
 
     override val apiIgnore: suspend (Throwable) -> Boolean = { throwable ->
         when (throwable) {
+            is MalformedInputException -> false
             is HttpRequestTimeoutException,
             is IOException
             -> {
@@ -124,7 +127,13 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
         }
         val limit = user.vip.superLimit.toLong()
 
-        val pre = preCreate(path = path, size = file.size, isDir = false, blocks = emptyList(), rename = RenameType.PATH)
+        val pre = preCreate(
+            path = path,
+            size = file.size,
+            isDir = false,
+            blocks = emptyList(),
+            rename = RenameType.PATH
+        )
 
         if (pre.type == CreateReturnType.EXIST) {
             return rapid
@@ -143,7 +152,14 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             bytes.toByteString().md5().hex()
         }.toList()
 
-        createFile(path = path, size = file.size, isDir = false, blocks = blocks, uploadId = pre.uploadId, rename = RenameType.PATH)
+        createFile(
+            path = path,
+            size = file.size,
+            isDir = false,
+            blocks = blocks,
+            uploadId = pre.uploadId,
+            rename = RenameType.PATH
+        )
 
         return rapid
     }
@@ -159,6 +175,16 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
         return useHttpClient { client ->
             client.config {
                 BrowserUserAgent()
+                // FIXME: MalformedInputException
+                expectSuccess = NetdiskUploadConfig.https.not()
+                HttpResponseValidator {
+                    validateResponse { response ->
+                        if (response.headers[HttpHeaders.ContentType] == "text/octet") {
+                            val bytes = response.readBytes()
+                            throw ClientRequestException(response, bytes.joinToString("") { "\\x%02x".format(it) })
+                        }
+                    }
+                }
             }.get(url) {
                 header(HttpHeaders.Range, fragment)
             }
