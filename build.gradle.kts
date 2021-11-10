@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "io.github.gnuf0rce"
-version = "1.0.0-dev-1"
+version = "1.0.0"
 
 repositories {
     mavenLocal()
@@ -14,12 +14,6 @@ repositories {
     mavenCentral()
     // maven(url = "https://maven.aliyun.com/repository/gradle-plugin")
     gradlePluginPortal()
-    maven(url = "https://maven.pkg.github.com/cssxsh/baidu-client") {
-        credentials {
-            username = System.getenv("GITHUB_ID")
-            password = System.getenv("GITHUB_TOKEN")
-        }
-    }
 }
 
 dependencies {
