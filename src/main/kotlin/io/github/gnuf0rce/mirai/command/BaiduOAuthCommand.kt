@@ -1,17 +1,13 @@
 package io.github.gnuf0rce.mirai.command
 
-import io.github.gnuf0rce.mirai.NetDiskClient
-import io.github.gnuf0rce.mirai.NetdiskFileSyncPlugin
-import net.mamoe.mirai.console.MiraiConsole
-import net.mamoe.mirai.console.command.ConsoleCommandSender
-import net.mamoe.mirai.console.command.SimpleCommand
-import net.mamoe.mirai.console.util.ConsoleExperimentalApi
-import net.mamoe.mirai.console.util.requestInput
+import io.github.gnuf0rce.mirai.*
+import net.mamoe.mirai.console.*
+import net.mamoe.mirai.console.command.*
+import net.mamoe.mirai.console.util.*
 import net.mamoe.mirai.utils.*
 import xyz.cssxsh.baidu.disk.*
 import xyz.cssxsh.baidu.oauth.*
 
-@ConsoleExperimentalApi
 object BaiduOAuthCommand : SimpleCommand(
     owner = NetdiskFileSyncPlugin,
     "baidu-oauth",

@@ -1,8 +1,6 @@
 package io.github.gnuf0rce.mirai.data
 
-import net.mamoe.mirai.console.data.AutoSavePluginData
-import net.mamoe.mirai.console.data.ValueName
-import net.mamoe.mirai.console.data.value
+import net.mamoe.mirai.console.data.*
 
 object NetdiskUserData : AutoSavePluginData("user") {
     @ValueName("expires")

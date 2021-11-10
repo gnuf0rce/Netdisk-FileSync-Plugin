@@ -9,19 +9,17 @@ group = "io.github.gnuf0rce"
 version = "1.0.0-dev-1"
 
 repositories {
+    mavenLocal()
+    // maven(url = "https://maven.aliyun.com/repository/public")
+    mavenCentral()
+    // maven(url = "https://maven.aliyun.com/repository/gradle-plugin")
+    gradlePluginPortal()
     maven(url = "https://maven.pkg.github.com/cssxsh/baidu-client") {
         credentials {
             username = System.getenv("GITHUB_ID")
             password = System.getenv("GITHUB_TOKEN")
         }
     }
-    mavenLocal()
-    maven(url = "https://maven.aliyun.com/repository/releases")
-    maven(url = "https://maven.aliyun.com/repository/public")
-    mavenCentral()
-    jcenter()
-    maven(url = "https://maven.aliyun.com/repository/gradle-plugin")
-    gradlePluginPortal()
 }
 
 dependencies {
@@ -29,9 +27,7 @@ dependencies {
     implementation(cssxsh("baidu-netdisk", Versions.baidu))
     implementation(ktor("client-serialization", Versions.ktor))
     implementation(ktor("client-encoding", Versions.ktor))
-    testImplementation(kotlin("test-junit5"))
-    testImplementation(junit("api", Versions.junit))
-    testRuntimeOnly(junit("engine", Versions.junit))
+    testImplementation(kotlin("test"))
 }
 
 
@@ -53,7 +49,7 @@ mirai {
 kotlin {
     sourceSets {
         all {
-            //
+            languageSettings.optIn("net.mamoe.mirai.console.util.ConsoleExperimentalApi")
         }
     }
 }
