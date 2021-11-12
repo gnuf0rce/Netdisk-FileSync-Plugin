@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "io.github.gnuf0rce"
-version = "1.0.1"
+version = "1.0.2"
 
 repositories {
     mavenLocal()
@@ -23,7 +23,6 @@ dependencies {
     implementation(ktor("client-encoding", Versions.ktor))
     testImplementation(kotlin("test"))
 }
-
 
 mirai {
     configureShadow {

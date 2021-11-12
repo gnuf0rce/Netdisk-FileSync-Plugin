@@ -7,5 +7,5 @@ object Versions {
     const val kotlin = "1.5.31"
     const val ktor = "1.5.4"
     // other
-    const val baidu = "0.1.0-dev-15"
+    const val baidu = "1.0.0"
 }
