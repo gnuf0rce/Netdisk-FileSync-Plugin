@@ -143,7 +143,7 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
         if (pre.type == CreateReturnType.EXIST) {
             return rapid
         } else {
-            check(pre.uploadId.isNotEmpty()) { pre.toString() }
+            check(pre.uploadId.isNotEmpty()) { pre }
         }
 
         val url = requireNotNull(file.getUrl()) { "文件不存在" }
