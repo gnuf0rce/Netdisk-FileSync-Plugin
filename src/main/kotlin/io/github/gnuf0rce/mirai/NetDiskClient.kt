@@ -113,16 +113,17 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
 
         val mkdir = coroutineScope {
             async {
-                createFile(path = path, size = 0, isDir = true, rename = RenameType.NO)
+                createDir(path = "${file.contact.id}")
             }
         }
 
         logger.info { "upload ${rapid.format()} to $path" }
 
-        runCatching {
-            rapidUploadFile(rapid)
-        }.onSuccess {
-            return@uploadAbsoluteFile rapid
+        try {
+            rapidUploadFile(info = rapid)
+            return rapid
+        } catch (e: Throwable) {
+            //
         }
 
         val user = getUserInfo()
@@ -213,8 +214,8 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             md5()
         } else {
             val url = requireNotNull(getUrl()) { "文件不存在" }
-            val bytes = download(urlString = url, range = 0L until SLICE_SIZE.toLong())
-            bytes.toByteString().md5().hex()
+            val slice = download(urlString = url, range = 0L until SLICE_SIZE.toLong())
+            slice.toByteString().md5().hex()
         }
     }
 }
