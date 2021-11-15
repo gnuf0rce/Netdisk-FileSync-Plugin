@@ -42,7 +42,7 @@ mirai {
 kotlin {
     sourceSets {
         all {
-            languageSettings.optIn("net.mamoe.mirai.console.util.ConsoleExperimentalApi")
+            // languageSettings.optIn("net.mamoe.mirai.console.util.ConsoleExperimentalApi")
         }
     }
 }
