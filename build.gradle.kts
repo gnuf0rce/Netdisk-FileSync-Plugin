@@ -21,7 +21,7 @@ dependencies {
     implementation(cssxsh("baidu-netdisk", Versions.baidu))
     implementation(ktor("client-serialization", Versions.ktor))
     implementation(ktor("client-encoding", Versions.ktor))
-    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test", Versions.kotlin))
 }
 
 mirai {
