@@ -125,7 +125,7 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             rapidUploadFile(info = rapid)
             return rapid
         } catch (e: Throwable) {
-            //
+            // TODO: log
         }
 
         val user = getUserInfo()
@@ -133,6 +133,17 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             "${file.contact}-${file.name} 超过了文件上传极限"
         }
         val limit = user.vip.superLimit.toLong()
+
+        val url = requireNotNull(file.getUrl()) { "文件不存在" }
+
+        if (file.size < limit) {
+            try {
+                uploadSingleFile(path = path, bytes = download(urlString = url), size = file.size.toInt())
+                return rapid
+            } catch (e: Throwable) {
+                // TODO: log
+            }
+        }
 
         val pre = preCreate(
             path = path,
@@ -148,10 +159,8 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             check(pre.uploadId.isNotEmpty()) { pre }
         }
 
-        val url = requireNotNull(file.getUrl()) { "文件不存在" }
-
         val blocks = (0 until file.size step limit).asFlow().map { offset ->
-            download(url, offset until minOf(offset + limit, file.size))
+            download(urlString = url, range = offset until minOf(offset + limit, file.size))
         }.withIndex().buffer().onStart {
             mkdir.await()
         }.map { (index, bytes) ->
