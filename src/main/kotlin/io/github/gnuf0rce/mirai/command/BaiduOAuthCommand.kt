@@ -30,8 +30,9 @@ object BaiduOAuthCommand : SimpleCommand(
         val url = NetDiskClient.getWebAuthorizeUrl(type = AuthorizeType.AUTHORIZATION)
         sendMessage("请打开连接，然后在十分钟内输入获得的认证码, $url")
         NetDiskClient.runCatching {
-            val code = read()
-            getAuthorizeToken(code = code).also { saveToken(token = it) } to getUserInfo()
+            val token = getAuthorizeToken(code = read())
+            saveToken(token = token)
+            token to getUserInfo()
         }.onSuccess { (token, user) ->
             logger.info { "百度云用户认证成功, ${user.baiduName} by $token" }
             sendMessage("百度云用户认证成功, ${user.baiduName} by $token")

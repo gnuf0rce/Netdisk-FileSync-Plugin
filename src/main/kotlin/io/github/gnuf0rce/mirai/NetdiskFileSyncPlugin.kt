@@ -27,7 +27,7 @@ object NetdiskFileSyncPlugin : KotlinPlugin(
             "插件需要百度网盘API支持，请到 https://pan.baidu.com/union/main/application/personal 申请应用，并填入oauth.yml"
         }
 
-        logger.info { "请将文件同步权限授予群 /perm g* ${NetDiskClient.permission.id}" }
+        logger.info { "请将文件同步权限授予群 /perm add g* ${NetDiskClient.permission.id}" }
 
         NetDiskClient.reload()
 
