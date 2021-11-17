@@ -20,8 +20,8 @@ object BaiduOAuthCommand : SimpleCommand(
     private suspend fun CommandSender.read(): String {
         return when (this) {
             is ConsoleCommandSender -> MiraiConsole.requestInput("")
-            is CommandSenderOnMessage<*> -> fromEvent.nextMessage().firstIsInstance<PlainText>().content
-            else -> throw IllegalStateException("位置环境 $this")
+            is CommandSenderOnMessage<*> -> fromEvent.nextMessage().content
+            else -> throw IllegalStateException("未知环境 $this")
         }
     }
 
