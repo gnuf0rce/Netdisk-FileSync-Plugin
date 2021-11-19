@@ -23,6 +23,7 @@ import net.mamoe.mirai.utils.*
 import okio.ByteString.Companion.toByteString
 import xyz.cssxsh.baidu.*
 import xyz.cssxsh.baidu.disk.*
+import xyz.cssxsh.baidu.exption.*
 import java.time.*
 
 @OptIn(ConsoleExperimentalApi::class)
@@ -54,9 +55,10 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
         get() {
             return try {
                 super.accessToken
-            } catch (e: Throwable) {
-                logger.warning({ "认证失效, 请访问以下网址，使用/baidu-oauth 指令进行认证" }, e)
-                throw e
+            } catch (cause: NotTokenException) {
+                runBlocking {
+                    cause.client.refresh().accessToken
+                }
             }
         }
 
@@ -124,14 +126,12 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
         try {
             rapidUploadFile(info = rapid)
             return rapid
-        } catch (e: Throwable) {
-            // TODO: log
+        } catch (throwable: Throwable) {
+            logger.info { "文件 ${file.name} 快速存入失败, 进入文件上传, $throwable" }
         }
 
         val user = getUserInfo()
-        check(file.size <= user.vip.updateLimit) {
-            "${file.contact}-${file.name} 超过了文件上传极限"
-        }
+        check(file.size <= user.vip.updateLimit) { "${file.contact}-${file.name} 超过了文件上传极限" }
         val limit = user.vip.superLimit.toLong()
 
         val url = requireNotNull(file.getUrl()) { "文件不存在" }
@@ -140,8 +140,8 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             try {
                 uploadSingleFile(path = path, bytes = download(urlString = url), size = file.size.toInt())
                 return rapid
-            } catch (e: Throwable) {
-                // TODO: log
+            } catch (throwable: Throwable) {
+                logger.info { "文件 ${file.name} 单文件上传失败, 进入文件上传, $throwable" }
             }
         }
 

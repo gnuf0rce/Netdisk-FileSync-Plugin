@@ -8,7 +8,6 @@ import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.*
 import net.mamoe.mirai.utils.*
 import xyz.cssxsh.baidu.disk.*
-import xyz.cssxsh.baidu.oauth.*
 
 object BaiduOAuthCommand : SimpleCommand(
     owner = NetdiskFileSyncPlugin,
@@ -27,12 +26,11 @@ object BaiduOAuthCommand : SimpleCommand(
 
     @Handler
     suspend fun CommandSender.handle() {
-        val url = NetDiskClient.getWebAuthorizeUrl(type = AuthorizeType.AUTHORIZATION)
-        sendMessage("请打开连接，然后在十分钟内输入获得的认证码, $url")
         NetDiskClient.runCatching {
-            val token = getAuthorizeToken(code = read())
-            saveToken(token = token)
-            token to getUserInfo()
+            authorize { url ->
+                sendMessage("请打开连接，然后在十分钟内输入获得的认证码, $url")
+                read()
+            } to getUserInfo()
         }.onSuccess { (token, user) ->
             logger.info { "百度云用户认证成功, ${user.baiduName} by $token" }
             sendMessage("百度云用户认证成功, ${user.baiduName} by $token")
