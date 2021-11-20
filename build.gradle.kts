@@ -8,6 +8,17 @@ plugins {
 group = "io.github.gnuf0rce"
 version = "1.1.0"
 
+mirai {
+    configureShadow {
+        exclude {
+            it.path.startsWith("okhttp3")
+        }
+        exclude {
+            it.path.startsWith("okio")
+        }
+    }
+}
+
 repositories {
     mavenLocal()
     // maven(url = "https://maven.aliyun.com/repository/public")
