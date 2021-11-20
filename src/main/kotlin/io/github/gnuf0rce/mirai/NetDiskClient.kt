@@ -23,7 +23,7 @@ import net.mamoe.mirai.utils.*
 import okio.ByteString.Companion.toByteString
 import xyz.cssxsh.baidu.*
 import xyz.cssxsh.baidu.disk.*
-import xyz.cssxsh.baidu.exption.*
+import xyz.cssxsh.baidu.exception.*
 import java.time.*
 
 @OptIn(ConsoleExperimentalApi::class)
@@ -51,6 +51,12 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
         }
     }
 
+    override var expires: OffsetDateTime by NetdiskUserData::expires
+
+    override var accessTokenValue: String by NetdiskUserData::accessToken
+
+    override var refreshTokenValue: String by NetdiskUserData::refreshToken
+
     override val accessToken: String
         get() {
             return try {
@@ -62,21 +68,15 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             }
         }
 
-    fun reload() = synchronized(this) {
-        expires = try {
-            OffsetDateTime.parse(NetdiskUserData.expires)
-        } catch (e: Throwable) {
-            OffsetDateTime.now()
+    override val refreshToken: String
+        get() {
+            return try {
+                super.refreshToken
+            } catch (cause: NotTokenException) {
+                logger.warning { "缺少 RefreshToken, 请使用 /baidu-oauth 绑定百度账号" }
+                throw cause
+            }
         }
-        accessTokenValue = NetdiskUserData.accessToken
-        refreshTokenValue = NetdiskUserData.refreshToken
-    }
-
-    fun save() {
-        NetdiskUserData.expires = expires.toString()
-        NetdiskUserData.accessToken = accessTokenValue.orEmpty()
-        NetdiskUserData.refreshToken = refreshTokenValue.orEmpty()
-    }
 
     fun subscribe() {
         globalEventChannel().subscribeMessages {
@@ -187,7 +187,7 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
         } else {
             Url(urlString)
         }
-        logger.info { "$url#$fragment" }
+        logger.info { "download $url#$fragment" }
         return useHttpClient { client ->
             client.config {
                 BrowserUserAgent()

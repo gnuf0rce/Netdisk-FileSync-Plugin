@@ -29,16 +29,12 @@ object NetdiskFileSyncPlugin : KotlinPlugin(
 
         logger.info { "请将文件同步权限授予群 /perm add g* ${NetDiskClient.permission.id}" }
 
-        NetDiskClient.reload()
-
         NetDiskClient.subscribe()
 
         BaiduOAuthCommand.register()
     }
 
     override fun onDisable() {
-        NetDiskClient.save()
-
         BaiduOAuthCommand.unregister()
     }
 }
