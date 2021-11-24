@@ -25,6 +25,8 @@ import xyz.cssxsh.baidu.*
 import xyz.cssxsh.baidu.disk.*
 import xyz.cssxsh.baidu.exception.*
 import java.time.*
+import kotlin.properties.*
+import kotlin.reflect.*
 
 @OptIn(ConsoleExperimentalApi::class)
 object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
@@ -38,14 +40,32 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
 
     private val logger get() = NetdiskFileSyncPlugin.logger
 
+    private var KClass<out Throwable>.count: Int by object : ReadWriteProperty<KClass<*>, Int> {
+        private val history = mutableMapOf<KClass<*>, Int>()
+
+        override fun getValue(thisRef: KClass<*>, property: KProperty<*>): Int {
+            return history[thisRef] ?: 0
+        }
+
+        override fun setValue(thisRef: KClass<*>, property: KProperty<*>, value: Int) {
+            history[thisRef] = value
+        }
+    }
+
     override val apiIgnore: suspend (Throwable) -> Boolean = { throwable ->
         when (throwable) {
             is MalformedInputException -> false
             is HttpRequestTimeoutException,
             is IOException
             -> {
-                logger.warning { "NetDiskClient Ignore: $throwable" }
-                true
+                val count = ++throwable::class.count
+                if (count > 10) {
+                    throwable::class.count = 0
+                    false
+                } else {
+                    logger.warning { "NetDiskClient Ignore: $throwable" }
+                    true
+                }
             }
             else -> false
         }
