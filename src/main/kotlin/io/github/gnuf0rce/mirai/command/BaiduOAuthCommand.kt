@@ -10,11 +10,11 @@ import net.mamoe.mirai.utils.*
 import xyz.cssxsh.baidu.disk.*
 
 object BaiduOAuthCommand : SimpleCommand(
-    owner = NetdiskFileSyncPlugin,
+    owner = NetDiskFileSyncPlugin,
     "baidu-oauth",
     description = "文件同步 百度账号认证指令"
 ) {
-    private val logger by NetdiskFileSyncPlugin::logger
+    private val logger by NetDiskFileSyncPlugin::logger
 
     private suspend fun CommandSender.read(): String {
         return when (this) {
@@ -26,7 +26,7 @@ object BaiduOAuthCommand : SimpleCommand(
 
     @Handler
     suspend fun CommandSender.handle() {
-        NetDiskClient.runCatching {
+        NetDisk.runCatching {
             authorize { url ->
                 sendMessage("请打开连接，然后在十分钟内输入获得的认证码, $url")
                 read()

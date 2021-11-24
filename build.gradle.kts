@@ -3,10 +3,20 @@ plugins {
     kotlin("plugin.serialization") version Versions.kotlin
 
     id("net.mamoe.mirai-console") version Versions.mirai
+    id("net.mamoe.maven-central-publish") version "0.7.0"
 }
 
 group = "io.github.gnuf0rce"
-version = "1.1.0"
+version = "1.2.0"
+
+mavenCentralPublish {
+    useCentralS01()
+    singleDevGithubProject("gnuf0rce", "netdisk-filesync-plugin", "cssxsh")
+    licenseFromGitHubProject("AGPL-3.0", "master")
+    publication {
+        artifact(tasks.getByName("buildPlugin"))
+    }
+}
 
 mirai {
     configureShadow {
@@ -28,8 +38,8 @@ repositories {
 }
 
 dependencies {
-    implementation(cssxsh("baidu-oauth", Versions.baidu))
-    implementation(cssxsh("baidu-netdisk", Versions.baidu))
+    api(cssxsh("baidu-oauth", Versions.baidu))
+    api(cssxsh("baidu-netdisk", Versions.baidu))
     implementation(ktor("client-serialization", Versions.ktor))
     implementation(ktor("client-encoding", Versions.ktor))
     testImplementation(kotlin("test", Versions.kotlin))

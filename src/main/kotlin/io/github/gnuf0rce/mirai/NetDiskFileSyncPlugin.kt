@@ -7,11 +7,11 @@ import net.mamoe.mirai.console.command.CommandManager.INSTANCE.unregister
 import net.mamoe.mirai.console.plugin.jvm.*
 import net.mamoe.mirai.utils.*
 
-object NetdiskFileSyncPlugin : KotlinPlugin(
+object NetDiskFileSyncPlugin : KotlinPlugin(
     JvmPluginDescription(
         id = "io.github.gnuf0rce.file-sync",
         name = "file-sync",
-        version = "1.1.0",
+        version = "1.2.0",
     ) {
         author("cssxsh")
     }
@@ -27,14 +27,16 @@ object NetdiskFileSyncPlugin : KotlinPlugin(
             "插件需要百度网盘API支持，请到 https://pan.baidu.com/union/main/application/personal 申请应用，并填入oauth.yml"
         }
 
-        logger.info { "请将文件同步权限授予群 /perm add g* ${NetDiskClient.permission.id}" }
+        logger.info { "请将文件同步权限授予群 /perm add g* ${NetDisk.permission.id}" }
 
-        NetDiskClient.subscribe()
+        NetDisk.subscribe()
 
         BaiduOAuthCommand.register()
     }
 
     override fun onDisable() {
         BaiduOAuthCommand.unregister()
+
+        NetDisk.cancel()
     }
 }

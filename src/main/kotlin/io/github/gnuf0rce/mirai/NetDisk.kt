@@ -29,16 +29,16 @@ import kotlin.properties.*
 import kotlin.reflect.*
 
 @OptIn(ConsoleExperimentalApi::class)
-object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
-    CoroutineScope by NetdiskFileSyncPlugin.childScope("NetDiskClient") {
+object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
+    CoroutineScope by NetDiskFileSyncPlugin.childScope("NetDisk") {
 
     val permission: Permission by lazy {
-        val id = NetdiskFileSyncPlugin.permissionId("sync")
-        val parent = NetdiskFileSyncPlugin.parentPermission
+        val id = NetDiskFileSyncPlugin.permissionId("sync")
+        val parent = NetDiskFileSyncPlugin.parentPermission
         PermissionService.INSTANCE.register(id, "百度云文件同步", parent)
     }
 
-    private val logger get() = NetdiskFileSyncPlugin.logger
+    private val logger get() = NetDiskFileSyncPlugin.logger
 
     private var KClass<out Throwable>.count: Int by object : ReadWriteProperty<KClass<*>, Int> {
         private val history = mutableMapOf<KClass<*>, Int>()
@@ -98,8 +98,8 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
             }
         }
 
-    fun subscribe() {
-        globalEventChannel().subscribeMessages {
+    fun subscribe(): Unit = with(globalEventChannel()) {
+        subscribeMessages {
             always {
                 val contact = subject as? Group ?: return@always
                 val content = message.firstIsInstanceOrNull<FileMessage>() ?: return@always
@@ -128,6 +128,10 @@ object NetDiskClient : BaiduNetDiskClient(config = NetdiskOauthConfig),
                 }
             }
         }
+    }
+
+    fun cancel() {
+        coroutineContext.cancelChildren()
     }
 
     private suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
