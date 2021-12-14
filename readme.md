@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/gnuf0rce/Netdisk-FileSync-Plugin)](https://github.com/gnuf0rce/Netdisk-FileSync-Plugin/releases)
 ![Downloads](https://img.shields.io/github/downloads/gnuf0rce/Netdisk-FileSync-Plugin/total)
 [![MiraiForum](https://img.shields.io/badge/post-on%20MiraiForum-yellow)](https://mirai.mamoe.net/topic/765)
-![maven-central](https://img.shields.io/maven-central/v/io.github.gnuf0rce/netdisk-filesync-plugin)
+[![maven-central](https://img.shields.io/maven-central/v/io.github.gnuf0rce/netdisk-filesync-plugin)](https://search.maven.org/artifact/io.github.gnuf0rce/netdisk-filesync-plugin)
 
 本插件可以将接收到的群文件消息同步到百度网盘  
 备份的文件在 `/apps/${app_name}/${group_id}/`
