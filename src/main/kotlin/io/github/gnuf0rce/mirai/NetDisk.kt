@@ -82,8 +82,8 @@ object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
             return try {
                 super.accessToken
             } catch (cause: NotTokenException) {
-                runBlocking {
-                    cause.client.refresh().accessToken
+                runBlocking(coroutineContext) {
+                    refresh().accessToken
                 }
             }
         }
