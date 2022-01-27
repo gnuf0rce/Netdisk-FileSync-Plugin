@@ -26,10 +26,10 @@ import java.time.*
 import kotlin.properties.*
 import kotlin.reflect.*
 
-object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
+public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
     CoroutineScope by NetDiskFileSyncPlugin.childScope("NetDisk") {
 
-    val permission: Permission by lazy {
+    public val permission: Permission by lazy {
         val id = NetDiskFileSyncPlugin.permissionId("sync")
         val parent = NetDiskFileSyncPlugin.parentPermission
         PermissionService.INSTANCE.register(id, "百度云文件同步", parent)
@@ -95,7 +95,7 @@ object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
             }
         }
 
-    fun subscribe(): Unit = with(globalEventChannel()) {
+    internal fun subscribe(): Unit = with(globalEventChannel()) {
         subscribeMessages {
             always {
                 val contact = subject as? Group ?: return@always
@@ -127,11 +127,11 @@ object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
         }
     }
 
-    fun cancel() {
+    internal fun cancel() {
         coroutineContext.cancelChildren()
     }
 
-    private suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
+    public suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
 
         val path = "${file.contact.id}${file.absolutePath}"
         val rapid = file.rapid().copy(path = path)

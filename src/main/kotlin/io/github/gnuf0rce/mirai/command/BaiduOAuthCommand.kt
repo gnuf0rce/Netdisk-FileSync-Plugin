@@ -9,7 +9,7 @@ import net.mamoe.mirai.message.*
 import net.mamoe.mirai.utils.*
 import xyz.cssxsh.baidu.disk.*
 
-object BaiduOAuthCommand : SimpleCommand(
+internal object BaiduOAuthCommand : SimpleCommand(
     owner = NetDiskFileSyncPlugin,
     "baidu-oauth",
     description = "文件同步 百度账号认证指令"

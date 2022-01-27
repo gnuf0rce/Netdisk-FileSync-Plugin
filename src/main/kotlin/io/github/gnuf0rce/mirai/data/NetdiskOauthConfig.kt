@@ -3,7 +3,7 @@ package io.github.gnuf0rce.mirai.data
 import net.mamoe.mirai.console.data.*
 import xyz.cssxsh.baidu.*
 
-object NetdiskOauthConfig : ReadOnlyPluginConfig("oauth"), BaiduAuthConfig {
+internal object NetdiskOauthConfig : ReadOnlyPluginConfig("oauth"), BaiduAuthConfig {
     @ValueName("app_id")
     override val appId: Long by value(0L)
 

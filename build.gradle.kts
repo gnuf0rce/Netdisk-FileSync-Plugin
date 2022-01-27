@@ -65,6 +65,7 @@ mirai {
 }
 
 kotlin {
+    explicitApi()
     sourceSets {
         all {
             // languageSettings.optIn("net.mamoe.mirai.console.util.ConsoleExperimentalApi")
