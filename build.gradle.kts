@@ -1,8 +1,8 @@
 plugins {
-    kotlin("jvm") version Versions.kotlin
-    kotlin("plugin.serialization") version Versions.kotlin
+    kotlin("jvm") version "1.6.0"
+    kotlin("plugin.serialization") version "1.6.0"
 
-    id("net.mamoe.mirai-console") version Versions.mirai
+    id("net.mamoe.mirai-console") version "2.10.0-RC2"
     id("net.mamoe.maven-central-publish") version "0.7.0"
 }
 
@@ -38,25 +38,29 @@ repositories {
 }
 
 dependencies {
-    api(cssxsh("baidu-oauth", Versions.baidu))
-    api(cssxsh("baidu-netdisk", Versions.baidu))
-    implementation(ktor("client-serialization", Versions.ktor))
-    implementation(ktor("client-encoding", Versions.ktor))
-    testImplementation(kotlin("test", Versions.kotlin))
+    api("xyz.cssxsh.baidu:baidu-netdisk:2.0.4") {
+        exclude(group = "org.jetbrains.kotlin")
+    }
+    implementation("io.ktor:ktor-client-serialization:1.6.5") {
+        exclude(group = "org.jetbrains.kotlin")
+        exclude(group = "org.jetbrains.kotlinx")
+        exclude(group = "org.slf4j")
+        exclude(group = "io.ktor", module = "ktor-client-core")
+    }
+    implementation("io.ktor:ktor-client-encoding:1.6.5") {
+        exclude(group = "org.jetbrains.kotlin")
+        exclude(group = "org.jetbrains.kotlinx")
+        exclude(group = "org.slf4j")
+        exclude(group = "io.ktor", module = "ktor-client-core")
+    }
+    compileOnly("net.mamoe:mirai-core-utils:${mirai.coreVersion}")
+    //
+    testImplementation(kotlin("test", kotlin.coreLibrariesVersion))
 }
 
 mirai {
     configureShadow {
-        exclude {
-            it.path.startsWith("kotlin")
-        }
-        exclude {
-            it.path.startsWith("org")
-        }
-        exclude {
-            it.path.startsWith("io/ktor") &&
-                (it.path.startsWith("io/ktor/client/features/compression") || it.path.startsWith("io/ktor/client/features/json")).not()
-        }
+        exclude("module-info.class")
     }
 }
 

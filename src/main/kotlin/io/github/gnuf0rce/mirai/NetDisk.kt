@@ -12,8 +12,6 @@ import kotlinx.coroutines.flow.*
 import net.mamoe.mirai.console.permission.*
 import net.mamoe.mirai.console.permission.PermissionService.Companion.testPermission
 import net.mamoe.mirai.console.permission.PermitteeId.Companion.permitteeId
-import net.mamoe.mirai.console.util.*
-import net.mamoe.mirai.console.util.CoroutineScopeUtils.childScope
 import net.mamoe.mirai.contact.*
 import net.mamoe.mirai.contact.file.*
 import net.mamoe.mirai.event.*
@@ -28,7 +26,6 @@ import java.time.*
 import kotlin.properties.*
 import kotlin.reflect.*
 
-@OptIn(ConsoleExperimentalApi::class)
 object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
     CoroutineScope by NetDiskFileSyncPlugin.childScope("NetDisk") {
 
