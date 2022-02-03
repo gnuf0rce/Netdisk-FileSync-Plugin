@@ -2,12 +2,12 @@ plugins {
     kotlin("jvm") version "1.6.0"
     kotlin("plugin.serialization") version "1.6.0"
 
-    id("net.mamoe.mirai-console") version "2.10.0-RC2"
-    id("net.mamoe.maven-central-publish") version "0.7.0"
+    id("net.mamoe.mirai-console") version "2.10.0"
+    id("net.mamoe.maven-central-publish") version "0.7.1"
 }
 
 group = "io.github.gnuf0rce"
-version = "1.2.1"
+version = "1.2.2"
 
 mavenCentralPublish {
     useCentralS01()
@@ -20,25 +20,18 @@ mavenCentralPublish {
 
 mirai {
     configureShadow {
-        exclude {
-            it.path.startsWith("okhttp3")
-        }
-        exclude {
-            it.path.startsWith("okio")
-        }
+        exclude("module-info.class")
     }
 }
 
 repositories {
     mavenLocal()
-    // maven(url = "https://maven.aliyun.com/repository/public")
     mavenCentral()
-    // maven(url = "https://maven.aliyun.com/repository/gradle-plugin")
     gradlePluginPortal()
 }
 
 dependencies {
-    api("xyz.cssxsh.baidu:baidu-netdisk:2.0.4") {
+    api("xyz.cssxsh.baidu:baidu-netdisk:2.0.5") {
         exclude(group = "org.jetbrains.kotlin")
     }
     implementation("io.ktor:ktor-client-serialization:1.6.5") {
@@ -53,9 +46,9 @@ dependencies {
         exclude(group = "org.slf4j")
         exclude(group = "io.ktor", module = "ktor-client-core")
     }
-    compileOnly("net.mamoe:mirai-core-utils:${mirai.coreVersion}")
+    compileOnly("net.mamoe:mirai-core-utils:2.10.0")
     //
-    testImplementation(kotlin("test", kotlin.coreLibrariesVersion))
+    testImplementation(kotlin("test", "1.6.0"))
 }
 
 mirai {
