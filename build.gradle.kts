@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.gnuf0rce"
-version = "1.2.3"
+version = "1.2.4"
 
 mavenCentralPublish {
     useCentralS01()
@@ -33,6 +33,7 @@ repositories {
 dependencies {
     api("xyz.cssxsh.baidu:baidu-netdisk:2.0.6") {
         exclude(group = "org.jetbrains.kotlin")
+        exclude(group = "io.ktor")
     }
     implementation("io.ktor:ktor-client-serialization:1.6.5") {
         exclude(group = "org.jetbrains.kotlin")
