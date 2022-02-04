@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.gnuf0rce"
-version = "1.2.2"
+version = "1.2.3"
 
 mavenCentralPublish {
     useCentralS01()
@@ -31,7 +31,7 @@ repositories {
 }
 
 dependencies {
-    api("xyz.cssxsh.baidu:baidu-netdisk:2.0.5") {
+    api("xyz.cssxsh.baidu:baidu-netdisk:2.0.6") {
         exclude(group = "org.jetbrains.kotlin")
     }
     implementation("io.ktor:ktor-client-serialization:1.6.5") {
@@ -64,10 +64,6 @@ kotlin {
             // languageSettings.optIn("net.mamoe.mirai.console.util.ConsoleExperimentalApi")
         }
     }
-}
-
-java {
-    disableAutoTargetJvm()
 }
 
 tasks {
