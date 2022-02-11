@@ -23,6 +23,7 @@ import xyz.cssxsh.baidu.*
 import xyz.cssxsh.baidu.disk.*
 import xyz.cssxsh.baidu.exception.*
 import java.time.*
+import java.util.*
 import kotlin.properties.*
 import kotlin.reflect.*
 
@@ -38,7 +39,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
     private val logger get() = NetDiskFileSyncPlugin.logger
 
     private var KClass<out Throwable>.count: Int by object : ReadWriteProperty<KClass<*>, Int> {
-        private val history = mutableMapOf<KClass<*>, Int>()
+        private val history: MutableMap<KClass<*>, Int> = WeakHashMap()
 
         override fun getValue(thisRef: KClass<*>, property: KProperty<*>): Int {
             return history[thisRef] ?: 0

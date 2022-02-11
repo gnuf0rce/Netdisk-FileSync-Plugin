@@ -11,7 +11,7 @@ public object NetDiskFileSyncPlugin : KotlinPlugin(
     JvmPluginDescription(
         id = "io.github.gnuf0rce.file-sync",
         name = "file-sync",
-        version = "1.2.4",
+        version = "1.2.5",
     ) {
         author("cssxsh")
     }

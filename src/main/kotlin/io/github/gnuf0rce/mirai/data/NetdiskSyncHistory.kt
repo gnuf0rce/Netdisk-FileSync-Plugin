@@ -4,5 +4,5 @@ import net.mamoe.mirai.console.data.*
 
 internal object NetdiskSyncHistory : AutoSavePluginData("history") {
     @ValueName("records")
-    val records by value(mutableListOf<String>())
+    val records: MutableList<String> by value()
 }
