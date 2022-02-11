@@ -27,7 +27,7 @@
 
 插件上传文件功能需要百度网盘API支持。  
 请到 <https://pan.baidu.com/union/main/application/personal> 申请应用，并将获得的APP信息填入  
-信息只在启动时读取，修改后需重启，并使用 `/baidu-oauth` 认证百度账号
+信息只在启动时读取，修改后需重启，并使用 `/baidu oauth` 认证百度账号
 
 ### upload.yml
 
@@ -35,7 +35,7 @@
 
 ## 在插件项目中引用
 
-```
+```kotlin
 repositories {
     mavenCentral()
 }
