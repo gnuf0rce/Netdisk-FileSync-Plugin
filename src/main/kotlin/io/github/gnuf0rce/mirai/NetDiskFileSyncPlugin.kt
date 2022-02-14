@@ -5,6 +5,7 @@ import io.github.gnuf0rce.mirai.data.*
 import net.mamoe.mirai.console.command.CommandManager.INSTANCE.register
 import net.mamoe.mirai.console.command.CommandManager.INSTANCE.unregister
 import net.mamoe.mirai.console.plugin.jvm.*
+import net.mamoe.mirai.event.*
 import net.mamoe.mirai.utils.*
 
 public object NetDiskFileSyncPlugin : KotlinPlugin(
@@ -29,7 +30,7 @@ public object NetDiskFileSyncPlugin : KotlinPlugin(
 
         logger.info { "请将文件同步权限授予群 /perm add g* ${NetDisk.permission.id}" }
 
-        NetDisk.subscribe()
+        NetDisk.registerTo(globalEventChannel())
 
         BaiduOAuthCommand.register()
     }

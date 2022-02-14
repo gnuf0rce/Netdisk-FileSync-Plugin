@@ -15,6 +15,7 @@ import net.mamoe.mirai.console.permission.PermitteeId.Companion.permitteeId
 import net.mamoe.mirai.contact.*
 import net.mamoe.mirai.contact.file.*
 import net.mamoe.mirai.event.*
+import net.mamoe.mirai.event.events.*
 import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.data.MessageSource.Key.quote
 import net.mamoe.mirai.utils.*
@@ -24,11 +25,13 @@ import xyz.cssxsh.baidu.disk.*
 import xyz.cssxsh.baidu.exception.*
 import java.time.*
 import java.util.*
+import kotlin.coroutines.*
 import kotlin.properties.*
 import kotlin.reflect.*
 
-public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
-    CoroutineScope by NetDiskFileSyncPlugin.childScope("NetDisk") {
+public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), ListenerHost, CoroutineScope {
+
+    override val coroutineContext: CoroutineContext = SupervisorJob() + Dispatchers.IO
 
     public val permission: Permission by lazy {
         val id = NetDiskFileSyncPlugin.permissionId("sync")
@@ -96,39 +99,36 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
             }
         }
 
-    internal fun subscribe(): Unit = with(globalEventChannel()) {
-        subscribeMessages {
-            always {
-                val contact = subject as? Group ?: return@always
-                val content = message.firstIsInstanceOrNull<FileMessage>() ?: return@always
-                if (permission.testPermission(contact.permitteeId).not()) return@always
+    @EventHandler
+    public suspend fun MessageEvent.handle() {
+        val contact = subject as? Group ?: return
+        val content = message.firstIsInstanceOrNull<FileMessage>() ?: return
+        if (permission.testPermission(contact.permitteeId).not()) return
 
-                logger.info { "发现文件消息 ${content}，开始上传" }
-                lateinit var file: AbsoluteFile
-                runCatching {
-                    file = withTimeout(10_000) {
-                        requireNotNull(content.toAbsoluteFile(contact)) { "文件获取失败" }
-                    }
+        logger.info { "发现文件消息 ${content}，开始上传" }
+        lateinit var file: AbsoluteFile
+        runCatching {
+            file = withTimeout(10_000) {
+                requireNotNull(content.toAbsoluteFile(contact)) { "文件获取失败" }
+            }
 
-                    uploadAbsoluteFile(file)
-                }.onSuccess { rapid ->
-                    val code = rapid.format()
-                    logger.info { "上传成功 $file" }
-                    NetdiskSyncHistory.records.add(code)
-                    if (NetdiskUploadConfig.reply) {
-                        subject.sendMessage(message.quote() + "文件 ${file.name} 上传成功, 秒传码:\n$code")
-                    }
-                }.onFailure {
-                    logger.warning({ "上传失败 $file" }, it)
-                    if (NetdiskUploadConfig.reply) {
-                        subject.sendMessage(message.quote() + "文件 ${file.name} 上传失败, $it")
-                    }
-                }
+            uploadAbsoluteFile(file)
+        }.onSuccess { rapid ->
+            val code = rapid.format()
+            logger.info { "上传成功 $file" }
+            NetdiskSyncHistory.records.add(code)
+            if (NetdiskUploadConfig.reply) {
+                subject.sendMessage(message.quote() + "文件 ${file.name} 上传成功, 秒传码:\n$code")
+            }
+        }.onFailure {
+            logger.warning({ "上传失败 $file" }, it)
+            if (NetdiskUploadConfig.reply) {
+                subject.sendMessage(message.quote() + "文件 ${file.name} 上传失败, $it")
             }
         }
     }
 
-    internal fun cancel() {
+    public fun cancel() {
         coroutineContext.cancelChildren()
     }
 
@@ -148,8 +148,10 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
         try {
             rapidUploadFile(info = rapid)
             return rapid
-        } catch (throwable: Throwable) {
+        } catch (throwable: IllegalStateException) {
             logger.info { "文件 ${file.name} 快速存入失败, 进入文件上传, $throwable" }
+        } catch (exception: Throwable) {
+            logger.info({ "文件 ${file.name} 快速存入失败, 进入文件上传" }, exception)
         }
 
         val user = getUserInfo()
@@ -162,8 +164,10 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig),
             try {
                 uploadSingleFile(path = path, bytes = download(urlString = url), size = file.size.toInt())
                 return rapid
-            } catch (throwable: Throwable) {
+            } catch (throwable: ClientRequestException) {
                 logger.info { "文件 ${file.name} 单文件上传失败, 进入文件上传, $throwable" }
+            } catch (exception: Throwable) {
+                logger.info({ "文件 ${file.name} 快速存入失败, 进入文件上传" }, exception)
             }
         }
 
