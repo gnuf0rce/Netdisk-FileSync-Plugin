@@ -148,7 +148,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         try {
             rapidUploadFile(info = rapid)
             return rapid
-        } catch (throwable: IllegalStateException) {
+        } catch (throwable: IllegalArgumentException) {
             logger.info { "文件 ${file.name} 快速存入失败, 进入文件上传, $throwable" }
         } catch (exception: Throwable) {
             logger.info({ "文件 ${file.name} 快速存入失败, 进入文件上传" }, exception)
