@@ -1,7 +1,7 @@
-package io.github.gnuf0rce.mirai
+package io.github.gnuf0rce.mirai.netdisk
 
-import io.github.gnuf0rce.mirai.command.*
-import io.github.gnuf0rce.mirai.data.*
+import io.github.gnuf0rce.mirai.netdisk.command.*
+import io.github.gnuf0rce.mirai.netdisk.data.*
 import net.mamoe.mirai.console.command.CommandManager.INSTANCE.register
 import net.mamoe.mirai.console.command.CommandManager.INSTANCE.unregister
 import net.mamoe.mirai.console.plugin.jvm.*
