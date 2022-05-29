@@ -1,7 +1,7 @@
 package io.github.gnuf0rce.mirai.netdisk.data
 
 import net.mamoe.mirai.console.data.*
-import xyz.cssxsh.baidu.*
+import xyz.cssxsh.baidu.oauth.*
 
 internal object NetdiskOauthConfig : ReadOnlyPluginConfig("oauth"), BaiduAuthConfig {
     @ValueName("app_id")

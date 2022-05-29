@@ -43,7 +43,7 @@ internal object BaiduOAuthCommand : CompositeCommand(
 
     @SubCommand
     suspend fun CommandSender.refresh(token: String) {
-        NetdiskUserData.refreshToken = token
+        NetdiskUserData.refreshTokenValue = token
         NetDisk.runCatching {
             refresh() to getUserInfo()
         }.onSuccess { (token, user) ->

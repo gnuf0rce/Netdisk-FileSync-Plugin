@@ -20,10 +20,10 @@ import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.data.MessageSource.Key.quote
 import net.mamoe.mirai.utils.*
 import okio.ByteString.Companion.toByteString
-import xyz.cssxsh.baidu.*
 import xyz.cssxsh.baidu.disk.*
-import xyz.cssxsh.baidu.exception.*
-import java.time.*
+import xyz.cssxsh.baidu.disk.data.*
+import xyz.cssxsh.baidu.oauth.*
+import xyz.cssxsh.baidu.oauth.exception.*
 import java.util.*
 import kotlin.coroutines.*
 import kotlin.properties.*
@@ -56,9 +56,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     override val apiIgnore: suspend (Throwable) -> Boolean = { throwable ->
         when (throwable) {
             is MalformedInputException -> false
-            is HttpRequestTimeoutException,
-            is IOException
-            -> {
+            is IOException -> {
                 val count = ++throwable::class.count
                 if (count > 10) {
                     throwable::class.count = 0
@@ -72,32 +70,16 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
     }
 
-    override var expires: OffsetDateTime by NetdiskUserData::expires
+    override val status: BaiduAuthStatus get() = NetdiskUserData
 
-    override var accessTokenValue: String by NetdiskUserData::accessToken
-
-    override var refreshTokenValue: String by NetdiskUserData::refreshToken
-
-    override val accessToken: String
-        get() {
-            return try {
-                super.accessToken
-            } catch (cause: NotTokenException) {
-                runBlocking(coroutineContext) {
-                    refresh().accessToken
-                }
-            }
+    override suspend fun refreshToken(): String {
+        return try {
+            super.refreshToken()
+        } catch (cause: NotTokenException) {
+            logger.warning { "缺少 RefreshToken, 请使用 /baidu-oauth 绑定百度账号" }
+            throw cause
         }
-
-    override val refreshToken: String
-        get() {
-            return try {
-                super.refreshToken
-            } catch (cause: NotTokenException) {
-                logger.warning { "缺少 RefreshToken, 请使用 /baidu-oauth 绑定百度账号" }
-                throw cause
-            }
-        }
+    }
 
     @EventHandler
     public suspend fun MessageEvent.handle() {
