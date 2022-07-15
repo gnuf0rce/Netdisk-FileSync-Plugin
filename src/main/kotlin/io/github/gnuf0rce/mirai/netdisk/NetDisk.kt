@@ -1,7 +1,8 @@
 package io.github.gnuf0rce.mirai.netdisk
 
 import io.github.gnuf0rce.mirai.netdisk.data.*
-import io.ktor.client.features.*
+import io.ktor.client.call.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -190,12 +191,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
 
     private suspend fun download(urlString: String, range: LongRange? = null): ByteArray {
         val fragment = range?.run { "bytes=${start}-${endInclusive}" }
-        val url = if (NetdiskUploadConfig.https) {
-            Url(urlString).copy(protocol = URLProtocol.HTTPS, host = "gzc-download.ftn.qq.com")
-        } else {
-            Url(urlString)
-        }
-        logger.info { "download $url#$fragment" }
+        logger.info { "download $urlString#$fragment" }
         return useHttpClient { client ->
             client.config {
                 BrowserUserAgent()
@@ -209,9 +205,16 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
                         }
                     }
                 }
-            }.get(url) {
+            }.get {
+                url {
+                    takeFrom(urlString)
+                    if (NetdiskUploadConfig.https) {
+                        protocol = URLProtocol.HTTPS
+                        host = "gzc-download.ftn.qq.com"
+                    }
+                }
                 header(HttpHeaders.Range, fragment)
-            }
+            }.body()
         }
     }
 
