@@ -13,7 +13,7 @@ internal object NetdiskUserData : AutoSavePluginData("user"), BaiduAuthStatus {
     }
 
     @ValueName("expires")
-    override var expires: OffsetDateTime by value()
+    override var expires: OffsetDateTime by value(OffsetDateTime.MIN)
 
     @ValueName("access_token")
     override var accessTokenValue: String by value("")
