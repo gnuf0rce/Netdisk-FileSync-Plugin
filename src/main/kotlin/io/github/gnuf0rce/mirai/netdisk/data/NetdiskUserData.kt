@@ -1,18 +1,19 @@
 package io.github.gnuf0rce.mirai.netdisk.data
 
+import kotlinx.serialization.modules.*
 import net.mamoe.mirai.console.data.*
-import net.mamoe.mirai.console.data.SerializableValue.Companion.serializableValueWith
-import net.mamoe.mirai.console.internal.data.*
 import xyz.cssxsh.baidu.api.*
 import xyz.cssxsh.baidu.oauth.*
 import java.time.*
 
 internal object NetdiskUserData : AutoSavePluginData("user"), BaiduAuthStatus {
+
+    override val serializersModule: SerializersModule = SerializersModule {
+        contextual(OffsetDateTimeSerializer)
+    }
+
     @ValueName("expires")
-    @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
-    override var expires: OffsetDateTime by LazyReferenceValueImpl<OffsetDateTime>()
-        .serializableValueWith(OffsetDateTimeSerializer)
-        .apply { value = OffsetDateTime.MIN }
+    override var expires: OffsetDateTime by value()
 
     @ValueName("access_token")
     override var accessTokenValue: String by value("")

@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.gnuf0rce"
-version = "1.3.3"
+version = "1.3.4"
 
 mavenCentralPublish {
     useCentralS01()
@@ -24,7 +24,7 @@ repositories {
 }
 
 dependencies {
-    api("xyz.cssxsh.baidu:baidu-netdisk:3.1.1") {
+    api("xyz.cssxsh.baidu:baidu-netdisk:3.1.2") {
         exclude(group = "org.jetbrains.kotlin")
         exclude(group = "org.jetbrains.kotlinx")
         exclude(group = "org.slf4j")

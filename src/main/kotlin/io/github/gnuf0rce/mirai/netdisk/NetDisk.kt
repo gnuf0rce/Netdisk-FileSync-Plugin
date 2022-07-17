@@ -20,7 +20,6 @@ import net.mamoe.mirai.event.events.*
 import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.data.MessageSource.Key.quote
 import net.mamoe.mirai.utils.*
-import okio.ByteString.Companion.toByteString
 import xyz.cssxsh.baidu.disk.*
 import xyz.cssxsh.baidu.disk.data.*
 import xyz.cssxsh.baidu.oauth.*
@@ -35,12 +34,24 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     override val coroutineContext: CoroutineContext = SupervisorJob() + Dispatchers.IO
 
     public val permission: Permission by lazy {
-        val id = NetDiskFileSyncPlugin.permissionId("sync")
-        val parent = NetDiskFileSyncPlugin.parentPermission
-        PermissionService.INSTANCE.register(id, "百度云文件同步", parent)
+        with(PermissionService.INSTANCE) {
+            try {
+                val id = NetDiskFileSyncPlugin.permissionId("sync")
+                val parent = NetDiskFileSyncPlugin.parentPermission
+                register(id, "百度云文件同步", parent)
+            } catch (_: Throwable) {
+                rootPermission
+            }
+        }
     }
 
-    private val logger get() = NetDiskFileSyncPlugin.logger
+    private val logger: MiraiLogger by lazy {
+        try {
+            NetDiskFileSyncPlugin.logger
+        } catch (_: Throwable) {
+            MiraiLogger.Factory.create(this::class, "netdisk")
+        }
+    }
 
     private var KClass<out Throwable>.count: Int by object : ReadWriteProperty<KClass<*>, Int> {
         private val history: MutableMap<KClass<*>, Int> = WeakHashMap()
@@ -174,7 +185,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             mkdir.await()
         }.map { (index, bytes) ->
             superFile(path = path, uploadId = pre.uploadId, index = index, data = bytes, size = bytes.size)
-            bytes.toByteString().md5().hex()
+            bytes.md5().toUHexString("").lowercase()
         }.toList()
 
         createFile(
@@ -228,7 +239,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     }
 
     private fun AbsoluteFile.md5(): String {
-        return md5.toByteString().hex()
+        return md5.toUHexString("")
     }
 
     private suspend fun AbsoluteFile.slice(): String {
@@ -237,7 +248,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         } else {
             val url = requireNotNull(getUrl()) { "文件不存在" }
             val slice = download(urlString = url, range = 0L until SLICE_SIZE.toLong())
-            slice.toByteString().md5().hex()
+            slice.md5().toUHexString("")
         }
     }
 }
