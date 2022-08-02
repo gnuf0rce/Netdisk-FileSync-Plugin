@@ -1,9 +1,9 @@
 plugins {
-    kotlin("jvm") version "1.6.21"
-    kotlin("plugin.serialization") version "1.6.21"
+    kotlin("jvm") version "1.7.10"
+    kotlin("plugin.serialization") version "1.7.10"
 
-    id("net.mamoe.mirai-console") version "2.12.0"
-    id("net.mamoe.maven-central-publish") version "0.7.1"
+    id("net.mamoe.mirai-console") version "2.12.1"
+    id("me.him188.maven-central-publish") version "1.0.0-dev-3"
 }
 
 group = "io.github.gnuf0rce"
@@ -24,14 +24,18 @@ repositories {
 }
 
 dependencies {
-    api("xyz.cssxsh.baidu:baidu-netdisk:3.1.2") {
+    api("xyz.cssxsh.baidu:baidu-netdisk:3.1.4") {
         exclude(group = "org.jetbrains.kotlin")
         exclude(group = "org.jetbrains.kotlinx")
         exclude(group = "org.slf4j")
     }
-    compileOnly("net.mamoe:mirai-core-utils:2.12.0")
+    compileOnly("net.mamoe:mirai-core-utils:2.12.1")
     //
-    testImplementation(kotlin("test", "1.6.21"))
+    testImplementation(kotlin("test"))
+}
+
+mirai {
+    jvmTarget = JavaVersion.VERSION_11
 }
 
 kotlin {
