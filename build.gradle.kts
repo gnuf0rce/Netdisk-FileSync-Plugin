@@ -7,12 +7,14 @@ plugins {
 }
 
 group = "io.github.gnuf0rce"
-version = "1.3.5"
+version = "1.3.6"
 
 mavenCentralPublish {
     useCentralS01()
     singleDevGithubProject("gnuf0rce", "netdisk-filesync-plugin", "cssxsh")
     licenseFromGitHubProject("AGPL-3.0", "master")
+    workingDir = System.getenv("PUBLICATION_TEMP")?.let { file(it).resolve(projectName) }
+        ?: project.buildDir.resolve("publishing-tmp")
     publication {
         artifact(tasks.getByName("buildPlugin"))
     }
@@ -30,6 +32,7 @@ dependencies {
         exclude(group = "org.slf4j")
     }
     compileOnly("net.mamoe:mirai-core-utils:2.12.1")
+    compileOnly("xyz.cssxsh.mirai:mirai-hibernate-plugin:2.4.3")
     //
     testImplementation(kotlin("test"))
 }
