@@ -24,7 +24,7 @@ repositories {
 }
 
 dependencies {
-    api("xyz.cssxsh.baidu:baidu-netdisk:3.1.4") {
+    api("xyz.cssxsh.baidu:baidu-netdisk:3.1.6") {
         exclude(group = "org.jetbrains.kotlin")
         exclude(group = "org.jetbrains.kotlinx")
         exclude(group = "org.slf4j")

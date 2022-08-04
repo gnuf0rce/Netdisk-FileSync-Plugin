@@ -1,15 +1,15 @@
 package io.github.gnuf0rce.mirai.netdisk
 
 import io.github.gnuf0rce.mirai.netdisk.data.*
-import io.ktor.client.call.*
+import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.charsets.*
+import io.ktor.utils.io.core.*
 import io.ktor.utils.io.errors.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
 import net.mamoe.mirai.console.permission.*
 import net.mamoe.mirai.console.permission.PermissionService.Companion.testPermission
 import net.mamoe.mirai.console.permission.PermitteeId.Companion.permitteeId
@@ -25,13 +25,17 @@ import xyz.cssxsh.baidu.disk.data.*
 import xyz.cssxsh.baidu.oauth.*
 import xyz.cssxsh.baidu.oauth.exception.*
 import java.util.*
+import kotlin.collections.*
 import kotlin.coroutines.*
 import kotlin.properties.*
 import kotlin.reflect.*
 
 public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), ListenerHost, CoroutineScope {
 
-    override val coroutineContext: CoroutineContext = SupervisorJob() + Dispatchers.IO
+    override val coroutineContext: CoroutineContext =
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, cause ->
+            logger.warning({ "Exception in NetDisk" }, cause)
+        }
 
     public val permission: Permission by lazy {
         with(PermissionService.INSTANCE) {
@@ -78,6 +82,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
                     true
                 }
             }
+
             else -> false
         }
     }
@@ -94,131 +99,137 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     }
 
     @EventHandler
-    public suspend fun MessageEvent.handle() {
+    public fun MessageEvent.handle() {
         val contact = subject as? Group ?: return
-        val content = message.firstIsInstanceOrNull<FileMessage>() ?: return
-        if (permission.testPermission(contact.permitteeId).not()) return
+        val content = message.findIsInstance<FileMessage>() ?: return
+        if (permission.testPermission(contact.permitteeId).not() &&
+            permission.testPermission(sender.permitteeId).not()
+        ) return
 
-        logger.info { "发现文件消息 ${content}，开始上传" }
-        lateinit var file: AbsoluteFile
-        runCatching {
-            file = withTimeout(10_000) {
-                requireNotNull(content.toAbsoluteFile(contact)) { "文件获取失败" }
+        launch {
+            logger.info { "发现文件消息 ${content}，开始上传" }
+            val file = withTimeout(10_000) {
+                content.toAbsoluteFile(contact) ?: throw NoSuchElementException("${content.name} in $contact")
             }
 
-            uploadAbsoluteFile(file)
-        }.onSuccess { rapid ->
+            val rapid = try {
+                uploadAbsoluteFile(file)
+            } catch (cause: Throwable) {
+                logger.warning({ "上传失败 $file" }, cause)
+                if (NetdiskUploadConfig.reply) {
+                    subject.sendMessage(message.quote() + "文件 ${file.name} 上传失败, ${cause.message}")
+                }
+                return@launch
+            }
             val code = rapid.format()
             logger.info { "上传成功 $file" }
             NetdiskSyncHistory.records.add(code)
             if (NetdiskUploadConfig.reply) {
                 subject.sendMessage(message.quote() + "文件 ${file.name} 上传成功, 秒传码:\n$code")
             }
-        }.onFailure {
-            logger.warning({ "上传失败 $file" }, it)
-            if (NetdiskUploadConfig.reply) {
-                subject.sendMessage(message.quote() + "文件 ${file.name} 上传失败, $it")
-            }
         }
     }
 
-    public fun cancel() {
-        coroutineContext.cancelChildren()
-    }
-
-    public suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
-
-        val path = "${file.contact.id}${file.absolutePath}"
-        val rapid = file.rapid().copy(path = path)
-
-        val mkdir = coroutineScope {
-            async {
-                createDir(path = "${file.contact.id}")
+    private suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
+        val url = requireNotNull(file.getUrl()) { "远程文件不存在" }
+        val rapid = with(file) {
+            val content = file.md5.toUHexString("").lowercase()
+            val slice = if (size <= SLICE_SIZE) {
+                content
+            } else {
+                val slice = download(urlString = url, range = 0L until SLICE_SIZE.toLong())
+                slice.md5().toUHexString("").lowercase()
             }
+            RapidUploadInfo(
+                content = content,
+                slice = slice,
+                length = size,
+                path = "${contact.id}${absolutePath}"
+            )
         }
 
-        logger.info { "upload ${rapid.format()} to $path" }
+        // 用群号做根目录
+        createDir(path = "${file.contact.id}")
+        logger.info { "upload ${rapid.format()}" }
 
+        // 尝试秒传
         try {
             rapidUploadFile(info = rapid)
             return rapid
         } catch (throwable: IllegalArgumentException) {
-            logger.info { "文件 ${file.name} 快速存入失败, 进入文件上传, $throwable" }
+            logger.info { "文件 ${file.name} 秒传失败, 进入文件上传, ${throwable.message}" }
         } catch (exception: Throwable) {
-            logger.info({ "文件 ${file.name} 快速存入失败, 进入文件上传" }, exception)
+            logger.info({ "文件 ${file.name} 秒传失败, 进入文件上传" }, exception)
         }
 
         val user = getUserInfo()
         check(file.size <= user.vip.updateLimit) { "${file.contact}-${file.name} 超过了文件上传极限" }
         val limit = user.vip.superLimit.toLong()
 
-        val url = requireNotNull(file.getUrl()) { "文件不存在" }
-
         if (file.size < limit) {
             try {
-                uploadSingleFile(path = path, bytes = download(urlString = url), size = file.size.toInt())
+                val bytes = download(urlString = url, 0 until file.size)
+                uploadSingleFile(path = rapid.path, bytes = bytes, size = file.size.toInt())
                 return rapid
             } catch (throwable: ClientRequestException) {
-                logger.info { "文件 ${file.name} 单文件上传失败, 进入文件上传, $throwable" }
+                logger.info { "文件 ${file.name} 单文件上传失败, 进入文件上传, ${throwable.message}" }
             } catch (exception: Throwable) {
                 logger.info({ "文件 ${file.name} 快速存入失败, 进入文件上传" }, exception)
             }
         }
 
-        val pre = preCreate(
-            path = path,
-            size = file.size,
-            isDir = false,
-            blocks = emptyList(),
-            rename = RenameType.PATH
-        )
 
-        if (pre.type == CreateReturnType.EXIST) {
-            return rapid
-        } else {
-            check(pre.uploadId.isNotEmpty()) { pre }
+        val uploadId = with(
+            preCreate(
+                path = rapid.path,
+                size = file.size,
+                isDir = false,
+                blocks = listOf("5910a591dd8fc18c32a8f3df4fdc1761", "a5fc157d78e6ad1c7e114b056c92821e"),
+                rename = RenameType.PATH
+            )
+        ) {
+            if (type == CreateReturnType.EXIST) {
+                return rapid
+            } else {
+                check(uploadId.isNotEmpty()) { this }
+                uploadId
+            }
         }
 
-        val blocks = (0 until file.size step limit).asFlow().map { offset ->
-            download(urlString = url, range = offset until minOf(offset + limit, file.size))
-        }.withIndex().buffer().onStart {
-            mkdir.await()
-        }.map { (index, bytes) ->
-            superFile(path = path, uploadId = pre.uploadId, index = index, data = bytes, size = bytes.size)
-            bytes.md5().toUHexString("").lowercase()
-        }.toList()
+        val blocks = blocks(urlString = url, limit = limit, path = rapid.path, uploadId = uploadId)
 
         createFile(
-            path = path,
+            path = rapid.path,
             size = file.size,
             isDir = false,
             blocks = blocks,
-            uploadId = pre.uploadId,
+            uploadId = uploadId,
             rename = RenameType.PATH
         )
 
         return rapid
     }
 
-    private suspend fun download(urlString: String, range: LongRange? = null): ByteArray {
-        val fragment = range?.run { "bytes=${start}-${endInclusive}" }
-        logger.info { "download $urlString#$fragment" }
-        return useHttpClient { client ->
-            client.config {
-                BrowserUserAgent()
-                // FIXME: MalformedInputException
-                expectSuccess = NetdiskUploadConfig.https.not()
-                HttpResponseValidator {
-                    validateResponse { response ->
-                        if (response.headers[HttpHeaders.ContentType] == "text/octet") {
-                            val bytes = response.readBytes()
-                            throw ClientRequestException(response, bytes.joinToString("") { "\\x%02x".format(it) })
-                        }
-                    }
+    override val client: HttpClient = super.client.config {
+        BrowserUserAgent()
+        // FIXME: MalformedInputException
+        expectSuccess = NetdiskUploadConfig.https.not()
+        HttpResponseValidator {
+            validateResponse { response ->
+                if (response.headers[HttpHeaders.ContentType] == "text/octet") {
+                    val bytes = response.readBytes()
+                    throw ClientRequestException(response, bytes.joinToString("") { "\\x%02x".format(it) })
                 }
-            }.get {
+            }
+        }
+    }
+
+    private suspend fun download(urlString: String, range: LongRange): ByteArray {
+        val fragment = range.run { "bytes=${start}-${endInclusive}" }
+        logger.verbose { "download $urlString#$fragment" }
+        return useHttpClient { client ->
+            client.prepareGet(urlString) {
                 url {
-                    takeFrom(urlString)
                     if (NetdiskUploadConfig.https) {
                         protocol = URLProtocol.HTTPS
                         host = "gzc-download.ftn.qq.com"
@@ -229,26 +240,34 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
     }
 
-    private suspend fun AbsoluteFile.rapid(): RapidUploadInfo {
-        return RapidUploadInfo(
-            content = md5(),
-            slice = slice(),
-            length = size,
-            path = absolutePath
-        )
-    }
-
-    private fun AbsoluteFile.md5(): String {
-        return md5.toUHexString("")
-    }
-
-    private suspend fun AbsoluteFile.slice(): String {
-        return if (size <= SLICE_SIZE) {
-            md5()
-        } else {
-            val url = requireNotNull(getUrl()) { "文件不存在" }
-            val slice = download(urlString = url, range = 0L until SLICE_SIZE.toLong())
-            slice.md5().toUHexString("")
+    private suspend fun blocks(urlString: String, limit: Long, path: String, uploadId: String): List<String> {
+        return useHttpClient { client ->
+            client.prepareGet(urlString) {
+                url {
+                    if (NetdiskUploadConfig.https) {
+                        protocol = URLProtocol.HTTPS
+                        host = "gzc-download.ftn.qq.com"
+                    }
+                }
+            }.execute { response ->
+                val channel = response.bodyAsChannel()
+                val capacity = ((response.contentLength() ?: 0) / limit + 1).toInt()
+                List(capacity) { index ->
+                    val packet = channel.readRemaining(limit)
+                    val bytes = packet.readBytes()
+                    supervisorScope {
+                        async {
+                            superFile(
+                                path = path,
+                                uploadId = uploadId,
+                                index = index,
+                                data = bytes,
+                                size = bytes.size
+                            ).md5
+                        }
+                    }
+                }
+            }.awaitAll()
         }
     }
 }

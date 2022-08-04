@@ -2,6 +2,7 @@ package io.github.gnuf0rce.mirai.netdisk
 
 import io.github.gnuf0rce.mirai.netdisk.command.*
 import io.github.gnuf0rce.mirai.netdisk.data.*
+import kotlinx.coroutines.*
 import net.mamoe.mirai.console.MiraiConsole
 import net.mamoe.mirai.console.command.CommandManager.INSTANCE.register
 import net.mamoe.mirai.console.command.CommandManager.INSTANCE.unregister
