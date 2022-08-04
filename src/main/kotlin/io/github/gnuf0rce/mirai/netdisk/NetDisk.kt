@@ -123,7 +123,9 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             }
             val code = rapid.format()
             logger.info { "上传成功 $file" }
-            NetdiskSyncHistory.records.add(code)
+            launch {
+                NetDiskFileSyncRecorder.record(file = file, rapid = rapid)
+            }
             if (NetdiskUploadConfig.reply) {
                 subject.sendMessage(message.quote() + "文件 ${file.name} 上传成功, 秒传码:\n$code")
             }

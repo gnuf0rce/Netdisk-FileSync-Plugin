@@ -1,8 +1,9 @@
 package io.github.gnuf0rce.mirai.netdisk.data
 
+import io.github.gnuf0rce.mirai.netdisk.entry.*
 import net.mamoe.mirai.console.data.*
 
 internal object NetdiskSyncHistory : AutoSavePluginData("history") {
-    @ValueName("records")
-    val records: MutableList<String> by value()
+    @ValueName("sync_upload_records")
+    val records: MutableList<SyncUploadRecord> by value()
 }
