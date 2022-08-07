@@ -12,7 +12,7 @@ version = "1.3.6"
 mavenCentralPublish {
     useCentralS01()
     singleDevGithubProject("gnuf0rce", "netdisk-filesync-plugin", "cssxsh")
-    licenseFromGitHubProject("AGPL-3.0", "master")
+    licenseFromGitHubProject("AGPL-3.0")
     workingDir = System.getenv("PUBLICATION_TEMP")?.let { file(it).resolve(projectName) }
         ?: project.buildDir.resolve("publishing-tmp")
     publication {
