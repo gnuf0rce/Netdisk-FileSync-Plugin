@@ -133,7 +133,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     }
 
     private suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
-        val url = requireNotNull(file.getUrl()) { "远程文件不存在" }
+        val url = requireNotNull(file.getUrl()) { "远程文件 URL 获取失败" }
         val rapid = with(file) {
             val content = file.md5.toUHexString("").lowercase()
             val slice = if (size <= SLICE_SIZE) {
@@ -151,27 +151,29 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
 
         // 用群号做根目录
-        createDir(path = "${file.contact.id}")
+        mkdir(path = "${file.contact.id}")
         logger.info { "upload ${rapid.format()}" }
 
         // 尝试秒传
         try {
-            rapidUploadFile(info = rapid)
+            rapid(upload = rapid)
             return rapid
         } catch (throwable: IllegalArgumentException) {
             logger.info { "文件 ${file.name} 秒传失败, 进入文件上传, ${throwable.message}" }
         } catch (exception: Throwable) {
-            logger.info({ "文件 ${file.name} 秒传失败, 进入文件上传" }, exception)
+            logger.warning({ "文件 ${file.name} 秒传失败, 进入文件上传" }, exception)
         }
 
-        val user = getUserInfo()
+        val user = rest.user()
         check(file.size <= user.vip.updateLimit) { "${file.contact}-${file.name} 超过了文件上传极限" }
         val limit = user.vip.superLimit.toLong()
 
         if (file.size < limit) {
             try {
-                val bytes = download(urlString = url, 0 until file.size)
-                uploadSingleFile(path = rapid.path, bytes = bytes, size = file.size.toInt())
+                val bytes = download(urlString = url, range = null)
+                pcs.upload(path = rapid.path, ondup = OnDupType.NEW_COPY, size = bytes.size.toLong()) {
+                    writeFully(bytes)
+                }
                 return rapid
             } catch (throwable: ClientRequestException) {
                 logger.info { "文件 ${file.name} 单文件上传失败, 进入文件上传, ${throwable.message}" }
@@ -181,33 +183,48 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
 
 
-        val uploadId = with(
-            preCreate(
-                path = rapid.path,
-                size = file.size,
-                isDir = false,
-                blocks = listOf("5910a591dd8fc18c32a8f3df4fdc1761", "a5fc157d78e6ad1c7e114b056c92821e"),
-                rename = RenameType.PATH
-            )
-        ) {
-            if (type == CreateReturnType.EXIST) {
-                return rapid
-            } else {
-                check(uploadId.isNotEmpty()) { this }
-                uploadId
-            }
+        val prepare = rest.prepare(upload = rapid, blocks = LAZY_BLOCKS, ondup = OnDupType.NEW_COPY)
+        if (prepare.type == PrepareReturnType.EXIST) {
+            return rapid
+        }
+        val uploadId = requireNotNull(prepare.uploadId) { prepare }
+
+        val blocks = useHttpClient { client ->
+            client.prepareGet(url) {
+                url {
+                    if (NetdiskUploadConfig.https) {
+                        protocol = URLProtocol.HTTPS
+                        host = "gzc-download.ftn.qq.com"
+                    }
+                }
+            }.execute { response ->
+                val channel = response.bodyAsChannel()
+                val capacity = (file.size / limit + 1).toInt()
+                List(capacity) { index ->
+                    val packet = channel.readRemaining(limit)
+                    supervisorScope {
+                        async {
+                            val size = packet.remaining.toInt()
+                            val temp = pcs.temp(path = rapid.path, id = uploadId, index = index, size = size) {
+                                writePacket(packet)
+                            }
+                            packet.close()
+
+                            temp.md5
+                        }
+                    }
+                }
+            }.awaitAll()
         }
 
-        val blocks = blocks(urlString = url, limit = limit, path = rapid.path, uploadId = uploadId)
-
-        createFile(
-            path = rapid.path,
-            size = file.size,
-            isDir = false,
-            blocks = blocks,
+        val merge = MergeFileInfo(
+            blocks = blocks.toMutableList(),
             uploadId = uploadId,
-            rename = RenameType.PATH
+            size = file.size,
+            path = rapid.path
         )
+
+        rest.create(merge = merge, ondup = OnDupType.NEW_COPY)
 
         return rapid
     }
@@ -226,8 +243,8 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
     }
 
-    private suspend fun download(urlString: String, range: LongRange): ByteArray {
-        val fragment = range.run { "bytes=${start}-${endInclusive}" }
+    private suspend fun download(urlString: String, range: LongRange?): ByteArray {
+        val fragment = range?.run { "bytes=${start}-${endInclusive}" }
         logger.verbose { "download $urlString#$fragment" }
         return useHttpClient { client ->
             client.prepareGet(urlString) {
@@ -239,37 +256,6 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
                 }
                 header(HttpHeaders.Range, fragment)
             }.body()
-        }
-    }
-
-    private suspend fun blocks(urlString: String, limit: Long, path: String, uploadId: String): List<String> {
-        return useHttpClient { client ->
-            client.prepareGet(urlString) {
-                url {
-                    if (NetdiskUploadConfig.https) {
-                        protocol = URLProtocol.HTTPS
-                        host = "gzc-download.ftn.qq.com"
-                    }
-                }
-            }.execute { response ->
-                val channel = response.bodyAsChannel()
-                val capacity = ((response.contentLength() ?: 0) / limit + 1).toInt()
-                List(capacity) { index ->
-                    val packet = channel.readRemaining(limit)
-                    val bytes = packet.readBytes()
-                    supervisorScope {
-                        async {
-                            superFile(
-                                path = path,
-                                uploadId = uploadId,
-                                index = index,
-                                data = bytes,
-                                size = bytes.size
-                            ).md5
-                        }
-                    }
-                }
-            }.awaitAll()
         }
     }
 }

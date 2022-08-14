@@ -8,7 +8,6 @@ import net.mamoe.mirai.console.util.*
 import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.*
 import net.mamoe.mirai.utils.*
-import xyz.cssxsh.baidu.disk.*
 
 internal object BaiduOAuthCommand : CompositeCommand(
     owner = NetDiskFileSyncPlugin,
@@ -31,7 +30,7 @@ internal object BaiduOAuthCommand : CompositeCommand(
             authorize { url ->
                 sendMessage("请打开连接，然后在十分钟内输入获得的认证码, $url")
                 read()
-            } to getUserInfo()
+            } to rest.user()
         }.onSuccess { (token, user) ->
             logger.info { "百度云用户认证成功, ${user.baiduName} by $token" }
             sendMessage("百度云用户认证成功, ${user.baiduName} by $token")
@@ -45,7 +44,7 @@ internal object BaiduOAuthCommand : CompositeCommand(
     suspend fun CommandSender.refresh(token: String) {
         NetdiskUserData.refreshTokenValue = token
         NetDisk.runCatching {
-            refresh() to getUserInfo()
+            refresh() to rest.user()
         }.onSuccess { (token, user) ->
             logger.info { "百度云用户认证成功, ${user.baiduName} by $token" }
             sendMessage("百度云用户认证成功, ${user.baiduName} by $token")
