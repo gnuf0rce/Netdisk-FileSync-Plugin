@@ -2,7 +2,9 @@ package io.github.gnuf0rce.mirai.netdisk
 
 import io.github.gnuf0rce.mirai.netdisk.data.*
 import io.ktor.client.*
+import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
+import io.ktor.client.plugins.compression.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -139,7 +141,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             val slice = if (size <= SLICE_SIZE) {
                 content
             } else {
-                val slice = download(urlString = url, range = 0L until SLICE_SIZE.toLong())
+                val slice = download(urlString = url, range = 0L until SLICE_SIZE.toLong()).body<ByteArray>()
                 slice.md5().toUHexString("").lowercase()
             }
             RapidUploadInfo(
@@ -170,7 +172,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
 
         if (file.size < limit) {
             try {
-                val bytes = download(urlString = url, range = null)
+                val bytes = download(urlString = url).body<ByteArray>()
                 pcs.upload(path = rapid.path, ondup = OnDupType.NEW_COPY, size = bytes.size.toLong()) {
                     writeFully(bytes)
                 }
@@ -189,33 +191,24 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
         val uploadId = requireNotNull(prepare.uploadId) { prepare }
 
-        val blocks = useHttpClient { client ->
-            client.prepareGet(url) {
-                url {
-                    if (NetdiskUploadConfig.https) {
-                        protocol = URLProtocol.HTTPS
-                        host = "gzc-download.ftn.qq.com"
-                    }
-                }
-            }.execute { response ->
-                val channel = response.bodyAsChannel()
-                val capacity = (file.size / limit + 1).toInt()
-                List(capacity) { index ->
-                    val packet = channel.readRemaining(limit)
-                    supervisorScope {
-                        async {
-                            val size = packet.remaining.toInt()
-                            val temp = pcs.temp(path = rapid.path, id = uploadId, index = index, size = size) {
-                                writePacket(packet)
-                            }
-                            packet.close()
-
-                            temp.md5
+        val blocks = download(urlString = url).execute { response ->
+            val channel = response.bodyAsChannel()
+            val capacity = (file.size / limit + 1).toInt()
+            List(capacity) { index ->
+                val packet = channel.readRemaining(limit)
+                supervisorScope {
+                    async {
+                        val size = packet.remaining.toInt()
+                        val temp = pcs.temp(path = rapid.path, id = uploadId, index = index, size = size) {
+                            writePacket(packet)
                         }
+                        packet.close()
+
+                        temp.md5
                     }
                 }
-            }.awaitAll()
-        }
+            }
+        }.awaitAll()
 
         val merge = MergeFileInfo(
             blocks = blocks.toMutableList(),
@@ -229,7 +222,8 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         return rapid
     }
 
-    override val client: HttpClient = super.client.config {
+    private val downloader: HttpClient = HttpClient(OkHttp) {
+        ContentEncoding()
         BrowserUserAgent()
         // FIXME: MalformedInputException
         expectSuccess = NetdiskUploadConfig.https.not()
@@ -243,19 +237,17 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
     }
 
-    private suspend fun download(urlString: String, range: LongRange?): ByteArray {
+    private suspend fun download(urlString: String, range: LongRange? = null): HttpStatement {
         val fragment = range?.run { "bytes=${start}-${endInclusive}" }
         logger.verbose { "download $urlString#$fragment" }
-        return useHttpClient { client ->
-            client.prepareGet(urlString) {
-                url {
-                    if (NetdiskUploadConfig.https) {
-                        protocol = URLProtocol.HTTPS
-                        host = "gzc-download.ftn.qq.com"
-                    }
+        return downloader.prepareGet(urlString) {
+            url {
+                if (NetdiskUploadConfig.https) {
+                    protocol = URLProtocol.HTTPS
+                    host = "gzc-download.ftn.qq.com"
                 }
-                header(HttpHeaders.Range, fragment)
-            }.body()
+            }
+            header(HttpHeaders.Range, fragment)
         }
     }
 }
