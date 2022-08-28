@@ -30,13 +30,13 @@ internal object BaiduOAuthCommand : CompositeCommand(
             authorize { url ->
                 sendMessage("请打开连接，然后在十分钟内输入获得的认证码, $url")
                 read()
-            } to rest.user()
+            } to user()
         }.onSuccess { (token, user) ->
             logger.info { "百度云用户认证成功, ${user.baiduName} by $token" }
             sendMessage("百度云用户认证成功, ${user.baiduName} by $token")
-        }.onFailure {
-            logger.warning({ "认证失败" }, it)
-            sendMessage("百度云用户认证失败, ${it.message}")
+        }.onFailure { cause ->
+            logger.warning({ "认证失败" }, cause)
+            sendMessage("百度云用户认证失败, ${cause.message}")
         }
     }
 
@@ -44,13 +44,39 @@ internal object BaiduOAuthCommand : CompositeCommand(
     suspend fun CommandSender.refresh(token: String) {
         NetdiskUserData.refreshTokenValue = token
         NetDisk.runCatching {
-            refresh() to rest.user()
+            refresh() to user()
         }.onSuccess { (token, user) ->
             logger.info { "百度云用户认证成功, ${user.baiduName} by $token" }
             sendMessage("百度云用户认证成功, ${user.baiduName} by $token")
-        }.onFailure {
-            logger.warning({ "认证失败" }, it)
-            sendMessage("百度云用户认证失败, ${it.message}")
+        }.onFailure { cause ->
+            logger.warning({ "认证失败" }, cause)
+            sendMessage("百度云用户认证失败, ${cause.message}")
+        }
+    }
+
+    @SubCommand
+    suspend fun CommandSender.host() {
+        NetDisk.runCatching {
+            host()
+        }.onSuccess { host ->
+            logger.info { "host 刷新成功 $host" }
+            sendMessage("host 刷新成功，共 ${host.server.size} 个服务器")
+        }.onFailure { cause ->
+            logger.warning({ "刷新失败" }, cause)
+            sendMessage("host 刷新失败, ${cause.message}")
+        }
+    }
+
+    @SubCommand
+    suspend fun CommandSender.user() {
+        NetDisk.runCatching {
+            user()
+        }.onSuccess { user ->
+            logger.info { "百度云用户刷新成功, ${user.baiduName} - ${user.vip}" }
+            sendMessage("百度云用户刷新成功, ${user.baiduName} - ${user.vip}")
+        }.onFailure { cause ->
+            logger.warning({ "刷新失败" }, cause)
+            sendMessage("百度云用户刷新失败, ${cause.message}")
         }
     }
 }

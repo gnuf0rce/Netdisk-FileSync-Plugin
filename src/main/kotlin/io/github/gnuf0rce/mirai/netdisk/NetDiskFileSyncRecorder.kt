@@ -3,6 +3,7 @@ package io.github.gnuf0rce.mirai.netdisk
 import io.github.gnuf0rce.mirai.netdisk.data.*
 import io.github.gnuf0rce.mirai.netdisk.entry.*
 import net.mamoe.mirai.contact.file.*
+import net.mamoe.mirai.message.data.*
 import org.hibernate.*
 import xyz.cssxsh.baidu.disk.*
 import xyz.cssxsh.hibernate.*
@@ -47,7 +48,50 @@ public object NetDiskFileSyncRecorder {
 
             factory.fromTransaction { session -> session.persist(record) }
         } else {
-            NetdiskSyncHistory.records.add(record)
+            NetdiskSyncHistory.sync.add(record)
+        }
+    }
+
+    public fun record(source: MessageSource, rapid: RapidUploadInfo) {
+
+        val record = CodeSaveRecord(
+            targetId = source.targetId,
+            fromId = source.fromId,
+            time = source.time,
+            ids = source.ids.joinToString(","),
+            code = rapid.format()
+        )
+
+        val factory = factory
+
+        if (factory != null) {
+            factory as SessionFactory
+
+            factory.fromTransaction { session -> session.persist(record) }
+        } else {
+            NetdiskSyncHistory.code.add(record)
+        }
+    }
+
+    public fun record(source: MessageSource, surl: String, password: String) {
+
+        val record = ShareSaveRecord(
+            targetId = source.targetId,
+            fromId = source.fromId,
+            time = source.time,
+            ids = source.ids.joinToString(","),
+            surl = surl,
+            password = password
+        )
+
+        val factory = factory
+
+        if (factory != null) {
+            factory as SessionFactory
+
+            factory.fromTransaction { session -> session.persist(record) }
+        } else {
+            NetdiskSyncHistory.share.add(record)
         }
     }
 
@@ -70,7 +114,7 @@ public object NetDiskFileSyncRecorder {
                 }.list()
             }
         } else {
-            NetdiskSyncHistory.records
+            NetdiskSyncHistory.sync
                 .asSequence()
                 .filter { it.uploaderId == uploaderId && it.uploadTime in start..end }
                 .toMutableList()
@@ -94,7 +138,7 @@ public object NetDiskFileSyncRecorder {
                 }.list()
             }
         } else {
-            NetdiskSyncHistory.records
+            NetdiskSyncHistory.sync
                 .asSequence()
                 .filter { it.contactId == contactId && it.uploadTime in start..end }
                 .toMutableList()

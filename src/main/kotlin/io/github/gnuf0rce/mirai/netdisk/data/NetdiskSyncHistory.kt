@@ -5,5 +5,11 @@ import net.mamoe.mirai.console.data.*
 
 internal object NetdiskSyncHistory : AutoSavePluginData("history") {
     @ValueName("sync_upload_records")
-    val records: MutableList<SyncUploadRecord> by value()
+    val sync: MutableList<SyncUploadRecord> by value()
+
+    @ValueName("code_save_records")
+    val code: MutableList<CodeSaveRecord> by value()
+
+    @ValueName("share_save_records")
+    val share: MutableList<ShareSaveRecord> by value()
 }
