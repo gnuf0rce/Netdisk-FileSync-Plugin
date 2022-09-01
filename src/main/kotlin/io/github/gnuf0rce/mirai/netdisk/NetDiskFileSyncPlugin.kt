@@ -19,6 +19,8 @@ public object NetDiskFileSyncPlugin : KotlinPlugin(
         version = "1.3.6",
     ) {
         author("cssxsh")
+
+        dependsOn("xyz.cssxsh.mirai.plugin.mirai-hibernate-plugin", false)
     }
 ) {
 
@@ -31,10 +33,16 @@ public object NetDiskFileSyncPlugin : KotlinPlugin(
         NetdiskOauthConfig.reload()
         NetdiskUploadConfig.reload()
         NetdiskUserData.reload()
-        NetdiskSyncHistory.reload()
 
         check(NetdiskOauthConfig.appKey.isNotBlank()) {
             "插件需要百度网盘API支持，请到 https://pan.baidu.com/union/main/application/personal 申请应用，并填入oauth.yml"
+        }
+        try {
+            NetDiskFileSyncRecorder.enable()
+            logger.info { "审核记录将记录到数据库 ${NetDiskFileSyncRecorder.database()}" }
+        } catch (_: NoClassDefFoundError) {
+            logger.info { "审核记录将记录到 ContentCensorHistory.yml" }
+            NetdiskSyncHistory.reload()
         }
 
         logger.info { "请将文件同步权限授予群 /perm add g* ${NetDisk.permission.id}" }
