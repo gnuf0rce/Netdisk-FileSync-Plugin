@@ -44,7 +44,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
                 val id = NetDiskFileSyncPlugin.permissionId("sync")
                 val parent = NetDiskFileSyncPlugin.parentPermission
                 register(id, "百度云文件同步", parent)
-            } catch (_: Throwable) {
+            } catch (_: Exception) {
                 rootPermission
             }
         }
@@ -59,7 +59,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     private val logger: MiraiLogger by lazy {
         try {
             NetDiskFileSyncPlugin.logger
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             MiraiLogger.Factory.create(this::class, "netdisk")
         }
     }
@@ -134,7 +134,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
 
             val rapid = try {
                 uploadAbsoluteFile(file)
-            } catch (cause: Throwable) {
+            } catch (cause: Exception) {
                 logger.warning({ "上传失败 $file" }, cause)
                 if (NetdiskUploadConfig.reply) {
                     subject.sendMessage(message.quote() + "文件 ${file.name} 上传失败, ${cause.message}")
@@ -244,9 +244,9 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         try {
             rapid(upload = rapid)
             return rapid
-        } catch (throwable: IllegalArgumentException) {
-            logger.info { "文件 ${file.name} 秒传失败, 进入文件上传, ${throwable.message}" }
-        } catch (exception: Throwable) {
+        } catch (cause: ClientRequestException) {
+            logger.info { "文件 ${file.name} 秒传失败, 进入文件上传, ${cause.message}" }
+        } catch (exception: Exception) {
             logger.warning({ "文件 ${file.name} 秒传失败, 进入文件上传" }, exception)
         }
 
@@ -261,9 +261,9 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
                     writeFully(bytes)
                 }
                 return rapid
-            } catch (throwable: ClientRequestException) {
-                logger.info { "文件 ${file.name} 单文件上传失败, 进入文件上传, ${throwable.message}" }
-            } catch (exception: Throwable) {
+            } catch (cause: ClientRequestException) {
+                logger.info { "文件 ${file.name} 单文件上传失败, 进入文件上传, ${cause.message}" }
+            } catch (exception: Exception) {
                 logger.info({ "文件 ${file.name} 单文件上传失败, 进入文件上传" }, exception)
             }
         }
