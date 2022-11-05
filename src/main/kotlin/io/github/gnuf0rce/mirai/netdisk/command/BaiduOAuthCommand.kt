@@ -16,10 +16,13 @@ internal object BaiduOAuthCommand : CompositeCommand(
 ) {
     private val logger by NetDiskFileSyncPlugin::logger
 
-    private suspend fun CommandSender.read(): String {
+    private suspend fun CommandSender.requestInput(hint: String): String {
         return when (this) {
-            is ConsoleCommandSender -> MiraiConsole.requestInput("")
-            is CommandSenderOnMessage<*> -> fromEvent.nextMessage().content
+            is ConsoleCommandSender -> MiraiConsole.requestInput(hint)
+            is CommandSenderOnMessage<*> -> {
+                sendMessage(hint)
+                fromEvent.nextMessage().content
+            }
             else -> throw IllegalStateException("未知环境 $this")
         }
     }
@@ -28,8 +31,7 @@ internal object BaiduOAuthCommand : CompositeCommand(
     suspend fun CommandSender.oauth() {
         NetDisk.runCatching {
             authorize { url ->
-                sendMessage("请打开连接，然后在十分钟内输入获得的认证码, $url")
-                read()
+                requestInput("请打开连接，然后在十分钟内输入获得的认证码, $url")
             } to user()
         }.onSuccess { (token, user) ->
             logger.info { "百度云用户认证成功, ${user.baiduName} by $token" }
