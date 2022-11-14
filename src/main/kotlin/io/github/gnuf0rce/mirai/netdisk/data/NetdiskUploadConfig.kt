@@ -8,4 +8,7 @@ internal object NetdiskUploadConfig : ReadOnlyPluginConfig("upload") {
 
     @ValueName("reply")
     val reply by value(true)
+
+    @ValueName("log")
+    val log by value(false)
 }

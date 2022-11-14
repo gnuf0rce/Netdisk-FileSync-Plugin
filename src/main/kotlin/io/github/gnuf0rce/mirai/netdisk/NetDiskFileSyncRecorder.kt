@@ -6,6 +6,7 @@ import net.mamoe.mirai.contact.file.*
 import net.mamoe.mirai.message.data.*
 import org.hibernate.*
 import xyz.cssxsh.baidu.disk.*
+import xyz.cssxsh.baidu.disk.data.*
 import xyz.cssxsh.hibernate.*
 import xyz.cssxsh.mirai.hibernate.*
 
@@ -92,6 +93,24 @@ public object NetDiskFileSyncRecorder {
             factory.fromTransaction { session -> session.persist(record) }
         } else {
             NetdiskSyncHistory.share.add(record)
+        }
+    }
+
+    public fun record(file: NetDiskFileInfo) {
+
+        val record = LogUploadRecord(
+            uploadTime = file.modified.toEpochSecond(),
+            filename = file.filename
+        )
+
+        val factory = factory
+
+        if (factory != null) {
+            factory as SessionFactory
+
+            factory.fromTransaction { session -> session.persist(record) }
+        } else {
+            NetdiskSyncHistory.log.add(record)
         }
     }
 

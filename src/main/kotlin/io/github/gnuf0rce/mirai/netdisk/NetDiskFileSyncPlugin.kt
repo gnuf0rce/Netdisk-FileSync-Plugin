@@ -3,7 +3,7 @@ package io.github.gnuf0rce.mirai.netdisk
 import io.github.gnuf0rce.mirai.netdisk.command.*
 import io.github.gnuf0rce.mirai.netdisk.data.*
 import kotlinx.coroutines.*
-import net.mamoe.mirai.console.MiraiConsole
+import net.mamoe.mirai.console.*
 import net.mamoe.mirai.console.command.CommandManager.INSTANCE.register
 import net.mamoe.mirai.console.command.CommandManager.INSTANCE.unregister
 import net.mamoe.mirai.console.plugin.*
@@ -11,12 +11,14 @@ import net.mamoe.mirai.console.plugin.jvm.*
 import net.mamoe.mirai.console.util.*
 import net.mamoe.mirai.event.*
 import net.mamoe.mirai.utils.*
+import xyz.cssxsh.baidu.disk.data.*
+import java.io.File
 
 public object NetDiskFileSyncPlugin : KotlinPlugin(
     JvmPluginDescription(
         id = "io.github.gnuf0rce.file-sync",
         name = "file-sync",
-        version = "1.3.6",
+        version = "1.3.7",
     ) {
         author("cssxsh")
 
@@ -50,6 +52,20 @@ public object NetDiskFileSyncPlugin : KotlinPlugin(
         NetDisk.registerTo(globalEventChannel())
 
         BaiduOAuthCommand.register()
+
+        if (NetdiskUploadConfig.log) {
+            NetDisk.launch {
+                val log = File("./logs")
+                    .listFiles()
+                    .orEmpty()
+                    .maxBy { it.lastModified() }
+
+                val file = NetDisk.upload(file = log, path = "mirai-logs", ondup = OnDupType.NEW_COPY)
+                NetDiskFileSyncRecorder.record(file = file)
+            }
+        } else {
+            logger.info { "如果需要上传日志文件，请修改 upload.yml 中的 log 配置项" }
+        }
     }
 
     override fun onDisable() {

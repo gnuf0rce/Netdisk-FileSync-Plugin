@@ -12,4 +12,7 @@ internal object NetdiskSyncHistory : AutoSavePluginData("history") {
 
     @ValueName("share_save_records")
     val share: MutableList<ShareSaveRecord> by value()
+
+    @ValueName("log_upload_records")
+    val log: MutableList<LogUploadRecord> by value()
 }
