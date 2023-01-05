@@ -251,8 +251,8 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
 
         val user = user()
+        check(file.size <= user.vip.updateLimit) { "${file.contact}-${file.name} 超过了文件上传极限" }
         val limit = user.vip.superLimit.toLong()
-        check(file.size <= limit) { "${file.contact}-${file.name} 超过了文件上传极限" }
 
         if (file.size < limit) {
             try {
