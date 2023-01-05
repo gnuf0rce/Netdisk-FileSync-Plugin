@@ -3,7 +3,7 @@
 > 基于 [Mirai Console](https://github.com/mamoe/mirai-console) 的 文件同步/备份 插件
 
 [![Release](https://img.shields.io/github/v/release/gnuf0rce/Netdisk-FileSync-Plugin)](https://github.com/gnuf0rce/Netdisk-FileSync-Plugin/releases)
-![Downloads](https://img.shields.io/github/downloads/gnuf0rce/Netdisk-FileSync-Plugin/total)
+[![Downloads](https://img.shields.io/github/downloads/gnuf0rce/Netdisk-FileSync-Plugin/total)](https://repo1.maven.org/maven2/io/github/gnuf0rce/netdisk-filesync-plugin/)
 [![MiraiForum](https://img.shields.io/badge/post-on%20MiraiForum-yellow)](https://mirai.mamoe.net/topic/765)
 [![maven-central](https://img.shields.io/maven-central/v/io.github.gnuf0rce/netdisk-filesync-plugin)](https://search.maven.org/artifact/io.github.gnuf0rce/netdisk-filesync-plugin)
 
@@ -31,7 +31,9 @@
 
 ### upload.yml
 
-* https 使用Https协议下载文件
+*   `https` 使用Https协议下载文件
+*   `reply` 同步后回复消息
+*   `log` 插件启动时上传日志文件
 
 ## 在插件项目中引用
 
@@ -42,6 +44,10 @@ repositories {
 
 dependencies {
     compileOnly("io.github.gnuf0rce:netdisk-filesync-plugin:${version}")
+}
+
+mirai {
+    jvmTarget = JavaVersion.VERSION_11
 }
 ``` 
 
@@ -60,9 +66,9 @@ dependencies {
 
 ### MCL 指令安装
 
-`./mcl --update-package io.github.gnuf0rce:netdisk-filesync-plugin --channel stable --type plugin`
+`./mcl --update-package io.github.gnuf0rce:netdisk-filesync-plugin --channel maven-stable --type plugin`
 
 ### 手动安装
 
-1. 运行 [Mirai Console](https://github.com/mamoe/mirai-console) 生成`plugins`文件夹
-1. 从 [Releases](https://github.com/gnuf0rce/Netdisk-FileSync-Plugin/releases) 下载`jar`并将其放入`plugins`文件夹中
+1.  从 [Releases](https://github.com/gnuf0rce/Netdisk-FileSync-Plugin/releases) 或者 [Maven](https://repo1.maven.org/maven2/io/github/gnuf0rce/netdisk-filesync-plugin/) 下载 `mirai2.jar`
+2.  将其放入 `plugins` 文件夹中

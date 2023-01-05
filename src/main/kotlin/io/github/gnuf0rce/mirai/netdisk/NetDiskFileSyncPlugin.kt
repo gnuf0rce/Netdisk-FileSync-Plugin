@@ -22,7 +22,7 @@ public object NetDiskFileSyncPlugin : KotlinPlugin(
     ) {
         author("cssxsh")
 
-        dependsOn("xyz.cssxsh.mirai.plugin.mirai-hibernate-plugin", false)
+        dependsOn("xyz.cssxsh.mirai.plugin.mirai-hibernate-plugin", true)
     }
 ) {
 
@@ -43,7 +43,7 @@ public object NetDiskFileSyncPlugin : KotlinPlugin(
             NetDiskFileSyncRecorder.enable()
             logger.info { "审核记录将记录到数据库 ${NetDiskFileSyncRecorder.database()}" }
         } catch (_: NoClassDefFoundError) {
-            logger.info { "审核记录将记录到 ContentCensorHistory.yml" }
+            logger.info { "审核记录将记录到 history.yml" }
             NetdiskSyncHistory.reload()
         }
 

@@ -1,22 +1,22 @@
 plugins {
-    kotlin("jvm") version "1.7.10"
-    kotlin("plugin.serialization") version "1.7.10"
+    kotlin("jvm") version "1.7.22"
+    kotlin("plugin.serialization") version "1.7.22"
 
-    id("net.mamoe.mirai-console") version "2.12.1"
+    id("net.mamoe.mirai-console") version "2.13.2"
     id("me.him188.maven-central-publish") version "1.0.0-dev-3"
 }
 
 group = "io.github.gnuf0rce"
-version = "1.3.6"
+version = "1.3.7"
 
 mavenCentralPublish {
     useCentralS01()
     singleDevGithubProject("gnuf0rce", "netdisk-filesync-plugin", "cssxsh")
     licenseFromGitHubProject("AGPL-3.0")
     workingDir = System.getenv("PUBLICATION_TEMP")?.let { file(it).resolve(projectName) }
-        ?: project.buildDir.resolve("publishing-tmp")
+        ?: buildDir.resolve("publishing-tmp")
     publication {
-        artifact(tasks.getByName("buildPlugin"))
+        artifact(tasks["buildPlugin"])
     }
 }
 
@@ -26,15 +26,16 @@ repositories {
 }
 
 dependencies {
-    api("xyz.cssxsh.baidu:baidu-netdisk:3.2.0") {
-        exclude(group = "org.jetbrains.kotlin")
-        exclude(group = "org.jetbrains.kotlinx")
-        exclude(group = "org.slf4j")
-    }
-    compileOnly("net.mamoe:mirai-core-utils:2.12.1")
-    compileOnly("xyz.cssxsh.mirai:mirai-hibernate-plugin:2.4.3")
-    //
+    api("xyz.cssxsh.baidu:baidu-netdisk:3.3.0")
+    compileOnly("xyz.cssxsh.mirai:mirai-hibernate-plugin:2.5.1")
     testImplementation(kotlin("test"))
+    //
+    implementation(platform("net.mamoe:mirai-bom:2.13.2"))
+    compileOnly("net.mamoe:mirai-console-compiler-common")
+    testImplementation("net.mamoe:mirai-logging-slf4j")
+    //
+    implementation(platform("org.slf4j:slf4j-parent:2.0.6"))
+    testImplementation("org.slf4j:slf4j-simple")
 }
 
 mirai {

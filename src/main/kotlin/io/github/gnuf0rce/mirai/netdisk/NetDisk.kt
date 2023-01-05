@@ -93,6 +93,8 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
 
     override val apiIgnore: suspend (Throwable) -> Boolean = { throwable ->
         when (throwable) {
+            is java.net.UnknownHostException,
+            is java.net.NoRouteToHostException -> false
             is IOException -> {
                 val count = ++throwable::class.count
                 if (count > 10) {
@@ -245,7 +247,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             rapid(upload = rapid)
             return rapid
         } catch (cause: ClientRequestException) {
-            logger.info { "文件 ${file.name} 秒传失败, 进入文件上传, ${cause.message}" }
+            logger.info { "文件 ${file.name} 秒传失败, 进入文件上传, ${cause.response.bodyAsText()}" }
         } catch (exception: Exception) {
             logger.warning({ "文件 ${file.name} 秒传失败, 进入文件上传" }, exception)
         }
