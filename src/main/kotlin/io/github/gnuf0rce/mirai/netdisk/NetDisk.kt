@@ -109,7 +109,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
     }
 
-    override val status: BaiduAuthStatus get() = NetdiskUserData
+    override val status: BaiduAuthStatus get() = NetdiskAuthStatus
 
     override suspend fun refreshToken(): String {
         return try {

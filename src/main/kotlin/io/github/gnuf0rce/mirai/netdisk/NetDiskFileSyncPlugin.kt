@@ -34,7 +34,7 @@ public object NetDiskFileSyncPlugin : KotlinPlugin(
 
         NetdiskOauthConfig.reload()
         NetdiskUploadConfig.reload()
-        NetdiskUserData.reload()
+        NetdiskAuthStatus.reload()
 
         check(NetdiskOauthConfig.appKey.isNotBlank()) {
             "插件需要百度网盘API支持，请到 https://pan.baidu.com/union/main/application/personal 申请应用，并填入oauth.yml"

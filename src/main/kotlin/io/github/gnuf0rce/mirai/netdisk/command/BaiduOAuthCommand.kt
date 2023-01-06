@@ -9,6 +9,7 @@ import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.*
 import net.mamoe.mirai.utils.*
 
+@PublishedApi
 internal object BaiduOAuthCommand : CompositeCommand(
     owner = NetDiskFileSyncPlugin,
     primaryName = "baidu",
@@ -44,7 +45,7 @@ internal object BaiduOAuthCommand : CompositeCommand(
 
     @SubCommand
     suspend fun CommandSender.refresh(token: String) {
-        NetdiskUserData.refreshTokenValue = token
+        NetdiskAuthStatus.refreshTokenValue = token
         NetDisk.runCatching {
             refresh() to user()
         }.onSuccess { (token, user) ->

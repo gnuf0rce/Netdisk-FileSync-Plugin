@@ -2,6 +2,7 @@ package io.github.gnuf0rce.mirai.netdisk.data
 
 import net.mamoe.mirai.console.data.*
 
+@PublishedApi
 internal object NetdiskUploadConfig : ReadOnlyPluginConfig("upload") {
     @ValueName("https")
     val https by value(false)

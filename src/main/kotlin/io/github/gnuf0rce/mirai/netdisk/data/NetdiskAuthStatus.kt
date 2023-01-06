@@ -6,7 +6,8 @@ import xyz.cssxsh.baidu.api.*
 import xyz.cssxsh.baidu.oauth.*
 import java.time.*
 
-internal object NetdiskUserData : AutoSavePluginData("user"), BaiduAuthStatus {
+@PublishedApi
+internal object NetdiskAuthStatus : AutoSavePluginData("user"), BaiduAuthStatus {
 
     override val serializersModule: SerializersModule = SerializersModule {
         contextual(OffsetDateTimeSerializer)
