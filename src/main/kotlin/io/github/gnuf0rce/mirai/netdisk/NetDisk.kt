@@ -8,8 +8,8 @@ import io.ktor.client.plugins.compression.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.util.*
 import io.ktor.utils.io.core.*
-import io.ktor.utils.io.errors.*
 import kotlinx.coroutines.*
 import net.mamoe.mirai.console.permission.*
 import net.mamoe.mirai.console.permission.PermissionService.Companion.testPermission
@@ -25,11 +25,8 @@ import xyz.cssxsh.baidu.disk.*
 import xyz.cssxsh.baidu.disk.data.*
 import xyz.cssxsh.baidu.oauth.*
 import xyz.cssxsh.baidu.oauth.exception.*
-import java.util.*
-import kotlin.collections.*
+import java.time.*
 import kotlin.coroutines.*
-import kotlin.properties.*
-import kotlin.reflect.*
 
 public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), ListenerHost, CoroutineScope {
 
@@ -51,28 +48,21 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     }
 
     @JvmStatic
-    public val SHORT_URL_REGEX: Regex = """(?:surl=|s/1)([A-z0-9=_-]+)\W+([A-z0-9]{4})?""".toRegex()
+    public val SHORT_URL_REGEX: Regex = """(?:surl=|s/1)([A-z0-9=_-]+)\s*([A-z0-9]{4})?""".toRegex()
 
     @JvmStatic
     public val STAND_CODE_REGEX: Regex = """[A-z0-9]{32}#[A-z0-9]{32}#\d+#\S+""".toRegex()
 
-    private val logger: MiraiLogger by lazy {
+    @JvmStatic
+    public val BD_LINK_REGEX: Regex = """bdlink=(\S+)""".toRegex()
+
+
+    @PublishedApi
+    internal val logger: MiraiLogger by lazy {
         try {
             NetDiskFileSyncPlugin.logger
         } catch (_: Exception) {
             MiraiLogger.Factory.create(this::class, "netdisk")
-        }
-    }
-
-    private var KClass<out Throwable>.count: Int by object : ReadWriteProperty<KClass<*>, Int> {
-        private val history: MutableMap<KClass<*>, Int> = WeakHashMap()
-
-        override fun getValue(thisRef: KClass<*>, property: KProperty<*>): Int {
-            return history[thisRef] ?: 0
-        }
-
-        override fun setValue(thisRef: KClass<*>, property: KProperty<*>, value: Int) {
-            history[thisRef] = value
         }
     }
 
@@ -91,23 +81,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
     }
 
-    override val apiIgnore: suspend (Throwable) -> Boolean = { throwable ->
-        when (throwable) {
-            is java.net.UnknownHostException,
-            is java.net.NoRouteToHostException -> false
-            is IOException -> {
-                val count = ++throwable::class.count
-                if (count > 10) {
-                    throwable::class.count = 0
-                    false
-                } else {
-                    logger.warning { "NetDiskClient Ignore: $throwable" }
-                    true
-                }
-            }
-            else -> false
-        }
-    }
+    override val apiIgnore: suspend (Throwable) -> Boolean = BaiduNetDiskPool.defaultApiIgnore
 
     override val status: BaiduAuthStatus get() = NetdiskAuthStatus
 
@@ -115,7 +89,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         return try {
             super.refreshToken()
         } catch (cause: NotTokenException) {
-            logger.warning { "缺少 RefreshToken, 请使用 /baidu-oauth 绑定百度账号" }
+            logger.warning { "缺少 RefreshToken, 请使用 '/baidu oauth' 绑定百度账号" }
             throw cause
         }
     }
@@ -163,34 +137,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             launch {
                 logger.info { "发现分享链接 ${match.value} 开始转存" }
                 val (surl, password) = match.destructured
-                val key = if (password.isNotEmpty()) {
-                    val verify = rest.verify(surl = surl, password = password)
-                    require(verify.errorNo == 0) { verify.errorMessage.ifEmpty { surl } }
-                    verify.key
-                } else {
-                    ""
-                }
-
-                val root = rest.view(surl = surl, key = key)
-
-                val dir = rest.mkdir(path = "${subject.id}/${root.uk}-${root.shareId}", ondup = OnDupType.NEW_COPY)
-
-                val info = TransferFileInfo(
-                    shareId = root.shareId,
-                    from = root.uk,
-                    key = key,
-                    files = emptyList()
-                )
-
-                val limit = user().vip.transferLimit
-
-                for (list in root.list.chunked(limit)) {
-                    val part = info.copy(files = list.map { it.id })
-
-                    rest.transfer(info = part, path = dir.path, ondup = OnDupType.NEW_COPY)
-
-                    delay(30_000)
-                }
+                sender.netdisk.saveShareLink(surl = surl, password = password)
 
                 launch {
                     NetDiskFileSyncRecorder.record(source = source, surl = surl, password = password)
@@ -203,23 +150,40 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         STAND_CODE_REGEX.findAll(plain.content).forEach { match ->
             launch {
                 logger.info { "发现秒传码 ${match.value} 开始保存" }
-                mkdir(path = "${subject.id}")
                 val upload = RapidUploadInfo.parse(code = match.value)
-                val path = "${subject.id}/${upload.path.substringAfterLast('/')}"
-
-                rapid(upload = upload.copy(path = path), ondup = OnDupType.NEW_COPY)
+                val path = sender.netdisk.saveRapidUpload(upload = upload)
 
                 launch {
                     NetDiskFileSyncRecorder.record(source = source, rapid = upload)
                 }
                 if (NetdiskUploadConfig.reply) {
-                    subject.sendMessage(message.quote() + "保存成功")
+                    subject.sendMessage(message.quote() + "保存成功 $path")
+                }
+            }
+        }
+        BD_LINK_REGEX.findAll(plain.content).forEach { match ->
+            launch {
+                logger.info { "发现秒传链接 ${match.value} 开始保存" }
+                val (base64) = match.destructured
+                val paths = mutableListOf<String>()
+                STAND_CODE_REGEX.findAll(base64.decodeBase64String()).forEach { m ->
+                    val upload = RapidUploadInfo.parse(code = m.value)
+                    val path = sender.netdisk.saveRapidUpload(upload = upload)
+                    paths.add(path)
+
+                    launch {
+                        NetDiskFileSyncRecorder.record(source = source, rapid = upload)
+                    }
+                }
+                if (NetdiskUploadConfig.reply) {
+                    subject.sendMessage(message.quote() + "保存成功 $paths")
                 }
             }
         }
     }
 
-    private suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
+    @PublishedApi
+    internal suspend fun uploadAbsoluteFile(file: AbsoluteFile): RapidUploadInfo {
         val url = requireNotNull(file.getUrl()) { "远程文件 URL 获取失败" }
         @Suppress("INVISIBLE_MEMBER")
         val rapid = with(file) {
@@ -234,12 +198,12 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
                 content = content,
                 slice = slice,
                 length = size,
-                path = "${contact.id}${absolutePath}"
+                path = "${LocalDate.now()}/${contact.id}${absolutePath}"
             )
         }
 
         // 用群号做根目录
-        mkdir(path = "${file.contact.id}")
+        mkdir(path = rapid.path.substringBeforeLast('/'))
         logger.info { "upload ${rapid.format()}" }
 
         // 尝试秒传
@@ -266,7 +230,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             } catch (cause: ClientRequestException) {
                 logger.info { "文件 ${file.name} 单文件上传失败, 进入文件上传, ${cause.message}" }
             } catch (exception: Exception) {
-                logger.info({ "文件 ${file.name} 单文件上传失败, 进入文件上传" }, exception)
+                logger.warning({ "文件 ${file.name} 单文件上传失败, 进入文件上传" }, exception)
             }
         }
 
@@ -277,16 +241,17 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
 
         val blocks = download(urlString = url).execute { response ->
             val channel = response.bodyAsChannel()
-            val capacity = (file.size / limit + 1).toInt()
+            val capacity = file.size.minus(1).div(limit).plus(1).toInt()
             List(capacity) { index ->
                 val packet = channel.readRemaining(limit)
                 supervisorScope {
                     async {
                         val size = packet.remaining.toInt()
-                        val temp = pcs.temp(path = rapid.path, id = uploadId, index = index, size = size) {
-                            writePacket(packet)
+                        val temp = packet.use {
+                            pcs.temp(path = rapid.path, id = uploadId, index = index, size = size) {
+                                writePacket(packet)
+                            }
                         }
-                        packet.close()
 
                         temp.md5
                     }
@@ -304,6 +269,53 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         rest.create(merge = merge, ondup = OnDupType.NEW_COPY)
 
         return rapid
+    }
+
+    @PublishedApi
+    internal val Contact.netdisk: BaiduNetDiskClient by BaiduNetDiskPool
+
+    @PublishedApi
+    internal suspend fun BaiduNetDiskClient.saveShareLink(surl: String, password: String): String {
+        val key = if (password.isNotEmpty()) {
+            val verify = rest.verify(surl = surl, password = password)
+            require(verify.errorNo == 0) { verify.errorMessage.ifEmpty { "$surl - $password" } }
+            verify.key
+        } else {
+            ""
+        }
+
+        val root = rest.view(surl = surl, key = key)
+
+        val dir = rest.mkdir(path = "${LocalDate.now()}/${root.uk}_${root.shareId}", ondup = OnDupType.NEW_COPY)
+
+        val info = TransferFileInfo(
+            shareId = root.shareId,
+            from = root.uk,
+            key = key,
+            files = emptyList()
+        )
+
+        val limit = user().vip.transferLimit
+
+        for (list in root.list.chunked(limit)) {
+            val part = info.copy(files = list.map { it.id })
+
+            rest.transfer(info = part, path = dir.path, ondup = OnDupType.NEW_COPY)
+
+            delay(30_000)
+        }
+
+        return dir.path
+    }
+
+    @PublishedApi
+    internal suspend fun BaiduNetDiskClient.saveRapidUpload(upload: RapidUploadInfo): String {
+        val path = "${LocalDate.now()}/${upload.path}"
+
+        mkdir(path = path.substringBeforeLast('/'))
+        rapid(upload = upload.copy(path = path), ondup = OnDupType.NEW_COPY)
+
+        return path
     }
 
     private suspend fun download(urlString: String, range: LongRange? = null): HttpStatement {
