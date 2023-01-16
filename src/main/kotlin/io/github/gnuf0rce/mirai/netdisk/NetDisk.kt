@@ -133,39 +133,55 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         val plain = message.findIsInstance<PlainText>() ?: return
         if (permission.testPermission(sender.permitteeId).not()) return
 
-        SHORT_URL_REGEX.findAll(plain.content).forEach { match ->
-            launch {
+        launch {
+            val paths = mutableListOf<String>()
+            SHORT_URL_REGEX.findAll(plain.content).forEach { match ->
                 logger.info { "发现分享链接 ${match.value} 开始转存" }
                 val (surl, password) = match.destructured
-                sender.netdisk.saveShareLink(surl = surl, password = password)
+                val path = sender.netdisk.saveShareLink(surl = surl, password = password)
+                paths.add(path)
 
                 launch {
                     NetDiskFileSyncRecorder.record(source = source, surl = surl, password = password)
                 }
-                if (NetdiskUploadConfig.reply) {
-                    subject.sendMessage(message.quote() + "分享 $surl 转存成功")
-                }
+            }
+            if (NetdiskUploadConfig.reply) {
+                subject.sendMessage(buildMessageChain {
+                    append(message.quote())
+                    appendLine("分享转存成功")
+                    paths.forEach { path ->
+                        appendLine(path)
+                    }
+                })
             }
         }
-        STAND_CODE_REGEX.findAll(plain.content).forEach { match ->
-            launch {
+        launch {
+            val paths = mutableListOf<String>()
+            STAND_CODE_REGEX.findAll(plain.content).forEach { match ->
                 logger.info { "发现秒传码 ${match.value} 开始保存" }
                 val upload = RapidUploadInfo.parse(code = match.value)
                 val path = sender.netdisk.saveRapidUpload(upload = upload)
+                paths.add(path)
 
                 launch {
                     NetDiskFileSyncRecorder.record(source = source, rapid = upload)
                 }
-                if (NetdiskUploadConfig.reply) {
-                    subject.sendMessage(message.quote() + "保存成功 $path")
-                }
+            }
+            if (NetdiskUploadConfig.reply) {
+                subject.sendMessage(buildMessageChain {
+                    append(message.quote())
+                    appendLine("秒传码保存成功")
+                    paths.forEach { path ->
+                        appendLine(path)
+                    }
+                })
             }
         }
-        BD_LINK_REGEX.findAll(plain.content).forEach { match ->
-            launch {
+        launch {
+            val paths = mutableListOf<String>()
+            BD_LINK_REGEX.findAll(plain.content).forEach { match ->
                 logger.info { "发现秒传链接 ${match.value} 开始保存" }
                 val (base64) = match.destructured
-                val paths = mutableListOf<String>()
                 STAND_CODE_REGEX.findAll(base64.decodeBase64String()).forEach { m ->
                     val upload = RapidUploadInfo.parse(code = m.value)
                     val path = sender.netdisk.saveRapidUpload(upload = upload)
@@ -175,9 +191,15 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
                         NetDiskFileSyncRecorder.record(source = source, rapid = upload)
                     }
                 }
-                if (NetdiskUploadConfig.reply) {
-                    subject.sendMessage(message.quote() + "保存成功 $paths")
-                }
+            }
+            if (NetdiskUploadConfig.reply) {
+                subject.sendMessage(buildMessageChain {
+                    append(message.quote())
+                    appendLine("秒传链接保存成功")
+                    paths.forEach { path ->
+                        appendLine(path)
+                    }
+                })
             }
         }
     }
