@@ -62,13 +62,18 @@ internal object BaiduOAuthCommand : CompositeCommand(
 
     @SubCommand
     suspend fun UserCommandSender.bind() {
-        val client = BaiduNetDiskPool.create(id = user.id)
+        val target = when(val sender = user) {
+            is Friend -> sender.id
+            is Member -> if (sender.isOperator()) sender.group.id else sender.id
+            else -> 0
+        }
+        val client = BaiduNetDiskPool.create(id = target)
         client.runCatching {
             authorize { url ->
                 requestInput("请打开连接，然后在十分钟内输入获得的认证码, $url")
             } to user()
         }.onSuccess { (token, info) ->
-            BaiduNetDiskPool.cache[user.id] = client
+            BaiduNetDiskPool.cache[target] = client
             logger.info { "百度云用户认证成功, ${info.baiduName} by $token" }
             sendMessage("百度云用户认证成功\n ${info.baiduName}")
         }.onFailure { cause ->
