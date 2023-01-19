@@ -127,17 +127,17 @@ public object NetDiskFileSyncRecorder {
                     criteria.select(root)
                         .where(
                             equal(root.get<Long>("uploaderId"), uploaderId),
-                            between(root.get("upload_time"), start, end)
+                            between(root.get("uploadTime"), start, end)
                         )
-                        .orderBy(desc(root.get<Long>("upload_time")))
+                        .orderBy(desc(root.get<Long>("uploadTime")))
                 }.list()
             }
         } else {
             NetdiskSyncHistory.sync
                 .asSequence()
                 .filter { it.uploaderId == uploaderId && it.uploadTime in start..end }
-                .toMutableList()
-                .apply { sortByDescending { it.uploadTime } }
+                .sortedByDescending { it.uploadTime }
+                .toList()
         }
     }
 
@@ -152,16 +152,19 @@ public object NetDiskFileSyncRecorder {
                     val root = criteria.from<SyncUploadRecord>()
 
                     criteria.select(root)
-                        .where(equal(root.get<Long>("contactId"), contactId), between(root.get("time"), start, end))
-                        .orderBy(desc(root.get<Long>("upload_time")))
+                        .where(
+                            equal(root.get<Long>("contactId"), contactId),
+                            between(root.get("time"), start, end)
+                        )
+                        .orderBy(desc(root.get<Long>("uploadTime")))
                 }.list()
             }
         } else {
             NetdiskSyncHistory.sync
                 .asSequence()
                 .filter { it.contactId == contactId && it.uploadTime in start..end }
-                .toMutableList()
-                .apply { sortByDescending { it.uploadTime } }
+                .sortedByDescending { it.uploadTime }
+                .toList()
         }
     }
 }

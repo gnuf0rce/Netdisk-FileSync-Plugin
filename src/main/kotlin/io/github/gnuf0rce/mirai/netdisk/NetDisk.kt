@@ -2,6 +2,7 @@ package io.github.gnuf0rce.mirai.netdisk
 
 import io.github.gnuf0rce.mirai.netdisk.data.*
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.compression.*
@@ -51,11 +52,10 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     public val SHORT_URL_REGEX: Regex = """(?:surl=|s/1)([A-z0-9=_-]+)\s*([A-z0-9]{4})?""".toRegex()
 
     @JvmStatic
-    public val STAND_CODE_REGEX: Regex = """[A-z0-9]{32}#[A-z0-9]{32}#\d+#\S+""".toRegex()
+    public val STAND_CODE_REGEX: Regex = """[A-z0-9]{32}#([A-z0-9]{32}#)?\d+#\S+""".toRegex()
 
     @JvmStatic
     public val BD_LINK_REGEX: Regex = """bdlink=(\S+)""".toRegex()
-
 
     @PublishedApi
     internal val logger: MiraiLogger by lazy {
@@ -74,7 +74,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         HttpResponseValidator {
             validateResponse { response ->
                 if (response.headers[HttpHeaders.ContentType] == "text/octet") {
-                    val bytes = response.readBytes()
+                    val bytes = response.body<ByteArray>()
                     throw ClientRequestException(response, bytes.joinToString("") { "\\x%02x".format(it) })
                 }
             }
@@ -149,9 +149,10 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             }
             if (paths.isNotEmpty() && NetdiskUploadConfig.reply) {
                 val info = netdisk.user()
+                val name = info.netdiskName.ifEmpty { info.baiduName }
                 subject.sendMessage(buildMessageChain {
                     append(message.quote())
-                    appendLine("分享转存到 ${info.netdiskName} 成功")
+                    appendLine("分享转存到 $name 成功")
                     paths.forEach { path ->
                         appendLine(path)
                     }
@@ -172,9 +173,10 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             }
             if (paths.isNotEmpty() && NetdiskUploadConfig.reply) {
                 val info = netdisk.user()
+                val name = info.netdiskName.ifEmpty { info.baiduName }
                 subject.sendMessage(buildMessageChain {
                     append(message.quote())
-                    appendLine("秒传码保存到 ${info.netdiskName} 成功")
+                    appendLine("秒传码保存到 $name 成功")
                     paths.forEach { path ->
                         appendLine(path)
                     }
@@ -198,9 +200,10 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
             }
             if (paths.isNotEmpty() && NetdiskUploadConfig.reply) {
                 val info = netdisk.user()
+                val name = info.netdiskName.ifEmpty { info.baiduName }
                 subject.sendMessage(buildMessageChain {
                     append(message.quote())
-                    appendLine("秒传链接到 ${info.netdiskName} 保存成功")
+                    appendLine("秒传链接保存到 $name 成功")
                     paths.forEach { path ->
                         appendLine(path)
                     }
@@ -312,7 +315,6 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
         }
 
         val root = rest.view(surl = surl, key = key)
-
         val dir = rest.mkdir(path = "${LocalDate.now()}/${root.uk}_${root.shareId}", ondup = OnDupType.NEW_COPY)
 
         val info = TransferFileInfo(
@@ -329,7 +331,7 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
 
             rest.transfer(info = part, path = dir.path, ondup = OnDupType.NEW_COPY)
 
-            delay(30_000)
+            delay(list.size.toLong())
         }
 
         return dir.path
@@ -339,10 +341,10 @@ public object NetDisk : BaiduNetDiskClient(config = NetdiskOauthConfig), Listene
     internal suspend fun BaiduNetDiskClient.saveRapidUpload(upload: RapidUploadInfo): String {
         val path = "${LocalDate.now()}/${upload.path}"
 
-        mkdir(path = path.substringBeforeLast('/'))
+        val dir = mkdir(path = path.substringBeforeLast('/'))
         rapid(upload = upload.copy(path = path), ondup = OnDupType.NEW_COPY)
 
-        return path
+        return dir.path.ifEmpty { path }
     }
 
     private suspend fun download(urlString: String, range: LongRange? = null): HttpStatement {

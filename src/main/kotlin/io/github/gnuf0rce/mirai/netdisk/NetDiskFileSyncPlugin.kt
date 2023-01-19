@@ -12,13 +12,13 @@ import net.mamoe.mirai.console.util.*
 import net.mamoe.mirai.event.*
 import net.mamoe.mirai.utils.*
 import xyz.cssxsh.baidu.disk.data.*
-import java.io.File
+import java.io.*
 
 public object NetDiskFileSyncPlugin : KotlinPlugin(
     JvmPluginDescription(
         id = "io.github.gnuf0rce.file-sync",
         name = "file-sync",
-        version = "1.3.7",
+        version = "1.4.0",
     ) {
         author("cssxsh")
 
